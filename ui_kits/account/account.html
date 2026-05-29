@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Личный кабинет — OM Time</title>
+  <meta name="description" content="Личный кабинет OM Time: управление расписанием программ, профилем и записями.">
+  <link rel="icon" type="image/png" href="../../assets/om-time-favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link rel="stylesheet" href="../../colors_and_type.css">
+  <link rel="stylesheet" href="../marketing/page.css">
+  <link rel="stylesheet" href="account.css">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="AccountPage.jsx"></script>
+  <script type="text/babel" src="AdminScheduleEditor.jsx"></script>
+  <script type="text/babel" src="AdminHeroCarousel.jsx"></script>
+
+  <script type="text/babel">
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { error: null };
+      }
+      static getDerivedStateFromError(err) { return { error: err }; }
+      render() {
+        if (this.state.error) {
+          return (
+            <div style={{ padding: 40, fontFamily: 'monospace', fontSize: 13, color: '#c0392b' }}>
+              <strong>Ошибка рендера:</strong>
+              <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    function App() {
+      return (
+        <div className="om-account-shell">
+          <ErrorBoundary>
+            <AccountPage />
+          </ErrorBoundary>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

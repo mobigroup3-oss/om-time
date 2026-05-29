@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Brand voice</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 32px; background: var(--om-canvas); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .block { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-lg); padding: 20px 22px; }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; padding: 4px 10px; border-radius: var(--om-radius-pill); margin-bottom: 12px; }
+  .tag.evidence { background: var(--om-gold-soft); color: var(--om-on-gold); }
+  .tag.human { background: var(--om-sage); color: var(--om-sage-deep); }
+  .quote { font-size: 17px; line-height: 1.45; color: var(--om-ink); font-weight: 500; }
+  .quote.serif { font-family: var(--om-font-editorial); font-style: italic; font-weight: 400; font-size: 18px; }
+  .meta { font-size: 12px; color: var(--om-muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="block">
+    <span class="tag evidence">Доказательная база</span>
+    <div class="quote">По данным клинических исследований методики, 93% участников снижают ИМТ на 2–3 пункта.</div>
+    <div class="meta">Concrete, source-cited, neutral.</div>
+  </div>
+  <div class="block">
+    <span class="tag human">Человеческая поддержка</span>
+    <div class="quote serif">«Сидели на диете, считали калории, ходили в зал. Сбросили — а через полгода всё на месте.»</div>
+    <div class="meta">Conversational, acknowledges difficulty, no pseudo-empathy.</div>
+  </div>
+</div>
+</body>
+</html>

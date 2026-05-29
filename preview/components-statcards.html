@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Stat card</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 28px; background: var(--om-canvas); font-family: var(--om-font-sans); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .card { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-lg); padding: 22px 20px; display: flex; flex-direction: column; gap: 8px; min-height: 150px; justify-content: space-between; box-shadow: var(--om-shadow-card); }
+  .num { font-size: 44px; font-weight: 500; color: var(--om-ink); line-height: 1; letter-spacing: -0.02em; font-feature-settings: 'tnum'; }
+  .lbl { font-size: 14px; color: var(--om-body); line-height: 1.4; }
+  .source { font-size: 11px; color: var(--om-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="card">
+    <span class="source">по исследованиям</span>
+    <div class="num">93%</div>
+    <div class="lbl">участников снизили ИМТ на 2–3 пункта</div>
+  </div>
+  <div class="card">
+    <span class="source">за месяц</span>
+    <div class="num">7–15<span style="font-size:24px; color:var(--om-muted);"> см</span></div>
+    <div class="lbl">уменьшение талии</div>
+  </div>
+  <div class="card">
+    <span class="source">нейропластика</span>
+    <div class="num">30–40%</div>
+    <div class="lbl">уменьшение объёма желудка</div>
+  </div>
+  <div class="card" style="background: var(--om-indigo); color: var(--om-on-indigo); border-color: transparent;">
+    <span class="source" style="color: rgba(251,248,242,0.6);">преддиабет</span>
+    <div class="num" style="color: var(--om-on-indigo);">100%</div>
+    <div class="lbl" style="color: rgba(251,248,242,0.85);">нормализация давления и сахара</div>
+  </div>
+</div>
+</body>
+</html>

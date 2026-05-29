@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Testimonial</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 32px; background: var(--om-canvas); font-family: var(--om-font-sans); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-lg); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .head { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--om-canvas-strong); display: flex; align-items: center; justify-content: center; font-weight: 500; color: var(--om-ink); }
+  .name { font-size: 15px; font-weight: 500; color: var(--om-ink); }
+  .sub { font-size: 13px; color: var(--om-muted); }
+  .quote { font-family: var(--om-font-editorial); font-style: italic; font-size: 17px; line-height: 1.45; color: var(--om-ink); }
+  .result { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pip { display: inline-flex; padding: 5px 11px; background: rgba(78, 107, 63, 0.14); color: var(--om-sage-deep); border-radius: var(--om-radius-pill); font-size: 12px; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="card">
+    <div class="head">
+      <div class="avatar">А</div>
+      <div>
+        <div class="name">Алия, 34</div>
+        <div class="sub">стартовый вес 89 кг · 1 месяц на программе</div>
+      </div>
+    </div>
+    <div class="quote">«Я не верила, что без диеты можно вообще что-то сбросить. Прошла 4 дня — поняла, что ела не потому что голодная.»</div>
+    <div class="result">
+      <span class="pip">−11 кг</span>
+      <span class="pip">порции −40%</span>
+      <span class="pip">ушли ночные перекусы</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="head">
+      <div class="avatar">Ж</div>
+      <div>
+        <div class="name">Жанар, 52</div>
+        <div class="sub">преддиабет в анамнезе · 2 месяца на программе</div>
+      </div>
+    </div>
+    <div class="quote">«Шла за весом — получила нормальный сахар. Эндокринолог удивился больше меня.»</div>
+    <div class="result">
+      <span class="pip">−8 кг</span>
+      <span class="pip">сахар в норме</span>
+      <span class="pip">давление стабильное</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

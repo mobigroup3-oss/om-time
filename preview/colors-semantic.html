@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Semantic colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 28px; background: var(--om-canvas); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: var(--om-radius-pill); font-size: 14px; font-weight: 500; white-space: nowrap; align-self: flex-start; max-width: 100%; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cell { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 110px; justify-content: space-between; }
+  .name { font-size: 12px; color: var(--om-muted); font-family: var(--om-font-mono); }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="cell">
+    <span class="pill" style="background: rgba(78, 107, 63, 0.12); color: var(--om-sage-deep);">
+      <span class="dot" style="background: var(--om-sage-deep);"></span>Подходит
+    </span>
+    <span class="name">--om-success · #4E6B3F</span>
+  </div>
+  <div class="cell">
+    <span class="pill" style="background: rgba(44, 93, 171, 0.12); color: var(--om-info);">
+      <span class="dot" style="background: var(--om-info);"></span>Информация
+    </span>
+    <span class="name">--om-info · #2C5DAB</span>
+  </div>
+  <div class="cell">
+    <span class="pill" style="background: rgba(196, 147, 33, 0.16); color: var(--om-warning);">
+      <span class="dot" style="background: var(--om-warning);"></span>2 места
+    </span>
+    <span class="name">--om-warning · #C49321</span>
+  </div>
+  <div class="cell">
+    <span class="pill" style="background: rgba(178, 52, 57, 0.14); color: var(--om-danger);">
+      <span class="dot" style="background: var(--om-danger);"></span>Срочно
+    </span>
+    <span class="name">--om-danger · #B23439</span>
+  </div>
+</div>
+</body>
+</html>

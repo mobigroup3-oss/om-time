@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Программы — OM Time</title>
+  <meta name="description" content="Каталог программ OM Time: флагманский 4-дневный интенсив «Вес идеальности», онлайн-форматы, клубные дни, подростковый клуб. Алматы и онлайн.">
+  <link rel="icon" type="image/png" href="../../assets/om-time-favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&display=swap">
+
+  <link rel="stylesheet" href="../../colors_and_type.css">
+  <link rel="stylesheet" href="page.css">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="om-splash" id="om-splash" aria-hidden="true">
+    <div class="om-splash-mark">
+      <img src="../../assets/om-time-mark.png" alt="">
+    </div>
+    <div class="om-splash-line"><span></span></div>
+    <div class="om-splash-meta">центр современных психотехнологий</div>
+  </div>
+
+  <div class="om-grain" aria-hidden="true"></div>
+
+  <div class="om-progress" aria-hidden="true"><span id="om-progress-bar"></span></div>
+
+  <div id="root"></div>
+
+  <script type="text/babel" src="Header.jsx"></script>
+  <script type="text/babel" src="Footer.jsx"></script>
+  <script type="text/babel" src="ProgramsPage.jsx"></script>
+
+  <script type="text/babel">
+    function App() {
+      React.useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      });
+
+      return (
+        <div className="om-page" id="top">
+          <Header active="programs" onNav={() => {}} />
+          <main>
+            <ProgramsPage />
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    // Splash dismiss
+    (function () {
+      var splash = document.getElementById('om-splash');
+      function dismiss() {
+        if (splash) { splash.classList.add('om-splash-out'); }
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        var root = document.getElementById('root');
+        var attempts = 0;
+        var check = setInterval(function () {
+          if ((root && root.children.length > 0) || attempts > 40) {
+            clearInterval(check);
+            setTimeout(dismiss, 200);
+          }
+          attempts++;
+        }, 100);
+      });
+
+      // Scroll progress bar
+      window.addEventListener('scroll', function () {
+        var bar = document.getElementById('om-progress-bar');
+        if (!bar) return;
+        var pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+        bar.style.width = Math.min(pct, 100) + '%';
+      }, { passive: true });
+    })();
+  </script>
+
+  <script>
+    // Programs page animations
+    (function () {
+      var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function waitForReact(cb, attempts) {
+        attempts = attempts || 0;
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          cb();
+        } else if (attempts < 60) {
+          setTimeout(function () { waitForReact(cb, attempts + 1); }, 100);
+        }
+      }
+
+      waitForReact(function () {
+        if (typeof gsap === 'undefined') return;
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Header glass effect
+        var header = document.querySelector('[data-animate="header"]');
+        if (header) {
+          ScrollTrigger.create({
+            start: 'top -60',
+            onUpdate: function (self) {
+              var p = Math.min(self.progress * 10, 1);
+              gsap.set(header, {
+                backdropFilter: 'blur(' + (p * 16) + 'px)',
+                boxShadow: '0 1px 0 rgba(27,24,64,' + (p * 0.08) + ')',
+                background: 'rgba(251,248,242,' + (0.72 + p * 0.23) + ')',
+              });
+            }
+          });
+        }
+
+        if (prefersReduced) {
+          gsap.utils.toArray('[data-animate]').forEach(function (el) {
+            gsap.fromTo(el, { opacity: 0 }, {
+              opacity: 1, duration: 0.4,
+              scrollTrigger: { trigger: el, start: 'top 90%' }
+            });
+          });
+          return;
+        }
+
+        // Hero entrance
+        var hero = document.querySelector('[data-animate="prog-hero"]');
+        if (hero) {
+          var tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+          tl.from(hero.children[0], { y: 10, opacity: 0, duration: 0.4 })
+            .from(hero.children[1], { y: 32, opacity: 0, duration: 0.65 }, '-=0.2')
+            .from(hero.children[2], { y: 20, opacity: 0, duration: 0.5 }, '-=0.3');
+        }
+
+        // Featured card
+        var feat = document.querySelector('[data-animate="prog-featured"]');
+        if (feat) {
+          gsap.from(feat, {
+            y: 40, opacity: 0, duration: 0.7, ease: 'power2.out',
+            scrollTrigger: { trigger: feat, start: 'top 84%' }
+          });
+        }
+
+        // Program cards
+        ScrollTrigger.batch('[data-animate="prog-card"]', {
+          start: 'top 86%',
+          onEnter: function (batch) {
+            gsap.from(batch, {
+              y: 50, scale: 0.96, opacity: 0, duration: 0.65,
+              stagger: 0.1, ease: 'power3.out', clearProps: 'transform,opacity'
+            });
+          }
+        });
+
+        ScrollTrigger.refresh();
+      });
+    })();
+  </script>
+</body>
+</html>

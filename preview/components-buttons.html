@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 28px 32px; background: var(--om-canvas); }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .btn { font-family: var(--om-font-sans); font-size: 16px; font-weight: 500; line-height: 1; padding: 14px 24px; border-radius: var(--om-radius-pill); border: 1px solid transparent; cursor: pointer; transition: all 200ms ease; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--om-ink); color: #fff; }
+  .btn-secondary { background: var(--om-canvas-white); color: var(--om-ink); border-color: var(--om-hairline); }
+  .btn-gold { background: var(--om-gold); color: var(--om-on-gold); }
+  .btn-ghost { background: transparent; color: var(--om-ink); border-color: transparent; padding: 14px 12px; }
+  .btn-pressed { background: var(--om-ink-active); color: #fff; box-shadow: var(--om-shadow-focus); }
+  .btn-disabled { background: var(--om-canvas-white); color: var(--om-faint); border-color: var(--om-hairline); cursor: not-allowed; }
+  .label { font-family: var(--om-font-mono); font-size: 11px; color: var(--om-muted); }
+  .stack { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="stack"><button class="btn btn-primary">Записаться на программу</button><span class="label">primary</span></div>
+  <div class="stack"><button class="btn btn-secondary">Посмотреть расписание</button><span class="label">secondary</span></div>
+  <div class="stack"><button class="btn btn-gold">Узнать подробнее</button><span class="label">gold</span></div>
+  <div class="stack"><button class="btn btn-ghost">Войти →</button><span class="label">ghost / text</span></div>
+</div>
+<div class="row" style="margin-top: 18px;">
+  <div class="stack"><button class="btn btn-pressed">Pressed + focus</button><span class="label">primary · :active + :focus-visible</span></div>
+  <div class="stack"><button class="btn btn-disabled">Недоступно</button><span class="label">disabled</span></div>
+</div>
+</body>
+</html>

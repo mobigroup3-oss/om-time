@@ -1,0 +1,296 @@
+/* =====================================================================
+   OM-Time Design System — colors_and_type.css
+   Brand: Центр современных психотехнологий и психотерапии OM Time
+   Voice: calm, evidence-based, two-tone (clinical + human-warm)
+   Language: Cyrillic-first (RU primary, KZ/EN supported)
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   FONTS
+   --------------------------------------------------------------------- */
+/* Onest — modern, Russian-first variable sans with calm humanist shapes.
+   Used for everything. Weights: 400 body, 500 mid, 600 display emphasis.   */
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&display=swap');
+
+/* PT Serif — used SPARINGLY for editorial pull-quotes and one-off
+   evidence callouts where serif weight signals "this is fact, not pitch".
+   Wide Cyrillic coverage, designed for screen and print.                  */
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap');
+
+/* JetBrains Mono — only for numeric tables (price columns, comparison
+   tables). Cyrillic-supporting mono.                                       */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+
+:root {
+  /* =================================================================
+     COLOR — base palette (derived from logo)
+     Logo carries three signature pigments:
+       • warm golden yellow (the swirling glyph)
+       • muted indigo-violet (the cradling hands + wordmark)
+       • clay-red coral (the four red stones inside the swirl)
+     Plus a warm-cream canvas. The system is editorial — clinical
+     trust + human warmth — not a "wellness gradient" page.
+     ================================================================= */
+
+  /* Ink / text — warm near-black derived from wordmark indigo */
+  --om-ink:            #1B1840;   /* H1/H2 display, primary CTA bg, ink */
+  --om-ink-active:     #0E0C2A;   /* Pressed state on primary CTAs */
+  --om-body:           #2E2B52;   /* Default body copy */
+  --om-muted:          #6B6890;   /* Captions, breadcrumbs, footer links */
+  --om-faint:          #9C99B4;   /* Disabled labels, low-emphasis meta */
+
+  /* Canvas — warm off-white, NOT pure white. Sets the editorial mood. */
+  --om-canvas:         #FBF8F2;   /* Page background, default surface */
+  --om-canvas-white:   #FFFFFF;   /* Cards on canvas, true white */
+  --om-canvas-soft:    #F4EFE2;   /* Subtle alt band, used between sections */
+  --om-canvas-strong:  #E8E2D3;   /* Light CTA banner (footer-adjacent) */
+
+  /* Hairlines & borders */
+  --om-hairline:       #E5DECB;   /* 1px input/card outline on canvas */
+  --om-hairline-soft:  #EFE9D9;   /* Subtle table divider */
+  --om-border-strong:  #B8B2C0;   /* Disabled-button outline */
+
+  /* Signature surfaces — the brand voltage moments. Full-bleed,
+     never tiny accents. Each carries its own ink color. */
+  --om-gold:           #F2C12E;   /* Logo yellow. Headline callouts, pricing tier highlight */
+  --om-gold-soft:      #FAE7A8;   /* Soft gold band, "what's included" surfaces */
+  --om-gold-deep:      #C99A12;   /* Press/active on gold */
+  --om-on-gold:        #1B1840;   /* Ink text on gold — never white */
+
+  --om-indigo:         #2E2470;   /* Deep brand indigo, signature dark card */
+  --om-indigo-deep:    #1B1448;   /* Footer, deepest band */
+  --om-on-indigo:      #FBF8F2;   /* Cream text on indigo — never pure white */
+
+  --om-coral:          #C03A3B;   /* Logo red dot. Signature warm card, urgency moments */
+  --om-coral-deep:     #8C2528;   /* Deeper coral, hero callout signature */
+  --om-on-coral:       #FBF8F2;
+
+  --om-sage:           #B7C9A8;   /* Calm green — "подходит / safe" semantic */
+  --om-sage-deep:      #4E6B3F;   /* Success ink on sage */
+
+  --om-lilac:          #C8BFE0;   /* Soft lilac, demo card surface */
+  --om-clay:           #E4B89A;   /* Warm peach demo card surface */
+  --om-cream:          #F2E3C4;   /* Cream callout band */
+
+  /* Semantic */
+  --om-link:           #3A2EA0;   /* Indigo-shifted link (NOT pure blue) */
+  --om-link-active:    #221B6E;
+  --om-info:           #2C5DAB;   /* Info badge */
+  --om-success:        #4E6B3F;   /* Same as --om-sage-deep, semantic alias */
+  --om-warning:        #C49321;   /* Caution / "осталось 2 места" */
+  --om-danger:         #B23439;   /* Crisis banner, error */
+
+  /* On-color text aliases */
+  --om-on-canvas:      var(--om-ink);
+  --om-on-dark:        var(--om-canvas);
+  --om-on-primary:     #FFFFFF;
+
+
+  /* =================================================================
+     TYPOGRAPHY
+     • Default family: Onest. Display sizes stay at weight 500;
+       emphasis comes from size + color, not weight.
+     • PT Serif appears only as `--om-font-editorial` for pull-quotes.
+     • Russian text uses lowercase "вы" inline (per voice guide).
+     ================================================================= */
+
+  --om-font-sans:      'Onest', 'Manrope', -apple-system, BlinkMacSystemFont,
+                       'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --om-font-editorial: 'PT Serif', 'Charter', 'Iowan Old Style', Georgia, serif;
+  --om-font-display:   'Fraunces', 'PT Serif', 'Charter', Georgia, serif;
+  --om-font-mono:      'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale — Russian text reads ~5% wider than English, so
+     line-heights are slightly more generous than typical Latin systems. */
+  --om-text-display-xl:  56px;   /* Hero h1 on homepage */
+  --om-text-display-lg:  44px;   /* Section heroes */
+  --om-text-display-md:  32px;   /* Block headlines */
+  --om-text-title-lg:    24px;   /* Section titles */
+  --om-text-title-md:    20px;   /* Sub-titles, card heads */
+  --om-text-title-sm:    18px;   /* Article cards, program cards */
+  --om-text-label:       16px;   /* Buttons, list labels */
+  --om-text-body:        16px;   /* Body copy */
+  --om-text-body-sm:     14px;   /* Captions, top nav, footer */
+  --om-text-meta:        13px;   /* Tags, breadcrumbs, legal */
+
+  --om-leading-tight:    1.15;
+  --om-leading-snug:     1.3;
+  --om-leading-body:     1.55;   /* Cyrillic body — slightly looser */
+  --om-leading-loose:    1.7;
+
+  --om-tracking-tight:   -0.01em;  /* Display headlines */
+  --om-tracking-normal:  0;
+  --om-tracking-wide:    0.04em;   /* Uppercase eyebrows / tags */
+
+
+  /* =================================================================
+     SPACING
+     Base 4px. The system snaps to multiples of 4.
+     `--om-space-section` (96px) is the universal vertical rhythm
+     constant — every editorial band gets it as top + bottom padding.
+     ================================================================= */
+
+  --om-space-2:    2px;
+  --om-space-4:    4px;
+  --om-space-8:    8px;
+  --om-space-12:   12px;
+  --om-space-16:   16px;
+  --om-space-20:   20px;
+  --om-space-24:   24px;
+  --om-space-32:   32px;
+  --om-space-40:   40px;
+  --om-space-48:   48px;
+  --om-space-64:   64px;
+  --om-space-80:   80px;
+  --om-space-96:   96px;
+  --om-space-section: 96px;
+
+  /* Container max width — content caps at 1240px; outer breathing
+     ranges from 24px (mobile) to 48px (desktop). */
+  --om-container-max: 1240px;
+  --om-container-pad: 48px;
+
+
+  /* =================================================================
+     RADIUS
+     Mostly soft: 12–16px for cards, 8px for buttons, full for badges.
+     The flagship CTA is rounded 999px (pill) — chosen because the
+     audience reads pills as "warm / human", whereas Airtable-style
+     hard 12px CTAs read as "tech / SaaS". OM-Time is the opposite of
+     SaaS — it's therapy. The pill is intentional.
+     ================================================================= */
+
+  --om-radius-xs:    4px;    /* Legal / cookie buttons */
+  --om-radius-sm:    8px;    /* Inputs, small inline buttons */
+  --om-radius-md:    12px;   /* Demo cards, list items */
+  --om-radius-lg:    16px;   /* Signature cards, hero callouts */
+  --om-radius-xl:    24px;   /* Large editorial panels */
+  --om-radius-pill:  9999px; /* Primary + secondary CTAs, chips, tags */
+  --om-radius-full:  9999px; /* Avatars, icon buttons */
+
+
+  /* =================================================================
+     ELEVATION
+     Brand is color-block first, shadow second. Shadows are subtle
+     and warm (tinted indigo, not gray) to sit on the cream canvas
+     without "crashing" into it.
+     ================================================================= */
+
+  --om-shadow-none:    none;
+  --om-shadow-hairline: 0 0 0 1px var(--om-hairline);
+  --om-shadow-card:    0 1px 2px rgba(27, 24, 64, 0.04),
+                       0 8px 24px rgba(27, 24, 64, 0.06);
+  --om-shadow-lifted:  0 2px 4px rgba(27, 24, 64, 0.05),
+                       0 16px 40px rgba(27, 24, 64, 0.10);
+  --om-shadow-focus:   0 0 0 3px rgba(58, 46, 160, 0.22);  /* link-color ring */
+
+
+  /* =================================================================
+     MOTION
+     Calm and short. Avoid bounces — therapy site, not gamified app.
+     ================================================================= */
+
+  --om-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --om-ease-out:      cubic-bezier(0, 0, 0.2, 1);
+  --om-dur-quick:     120ms;
+  --om-dur-base:      200ms;
+  --om-dur-slow:      320ms;
+}
+
+
+/* =====================================================================
+   SEMANTIC ROLES — drop-in styles for raw HTML elements
+   Pages that import this file get reasonable defaults for free.
+   ===================================================================== */
+
+html, body {
+  font-family: var(--om-font-sans);
+  font-size: var(--om-text-body);
+  line-height: var(--om-leading-body);
+  color: var(--om-body);
+  background: var(--om-canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'ss01', 'cv01';   /* Onest stylistic alternates */
+}
+
+h1, .om-h1 {
+  font-family: var(--om-font-sans);
+  font-size: var(--om-text-display-xl);
+  font-weight: 500;
+  line-height: var(--om-leading-tight);
+  letter-spacing: var(--om-tracking-tight);
+  color: var(--om-ink);
+  text-wrap: balance;
+  margin: 0;
+}
+
+h2, .om-h2 {
+  font-family: var(--om-font-sans);
+  font-size: var(--om-text-display-md);
+  font-weight: 500;
+  line-height: var(--om-leading-snug);
+  letter-spacing: var(--om-tracking-tight);
+  color: var(--om-ink);
+  text-wrap: balance;
+  margin: 0;
+}
+
+h3, .om-h3 {
+  font-family: var(--om-font-sans);
+  font-size: var(--om-text-title-lg);
+  font-weight: 500;
+  line-height: var(--om-leading-snug);
+  color: var(--om-ink);
+  margin: 0;
+}
+
+h4, .om-h4 {
+  font-family: var(--om-font-sans);
+  font-size: var(--om-text-title-md);
+  font-weight: 500;
+  line-height: var(--om-leading-snug);
+  color: var(--om-ink);
+  margin: 0;
+}
+
+p, .om-body {
+  font-size: var(--om-text-body);
+  line-height: var(--om-leading-body);
+  color: var(--om-body);
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.om-eyebrow {
+  font-size: var(--om-text-meta);
+  font-weight: 500;
+  letter-spacing: var(--om-tracking-wide);
+  text-transform: uppercase;
+  color: var(--om-muted);
+}
+
+.om-quote {
+  font-family: var(--om-font-editorial);
+  font-size: var(--om-text-title-lg);
+  font-style: italic;
+  line-height: var(--om-leading-snug);
+  color: var(--om-ink);
+}
+
+.om-num {
+  font-family: var(--om-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+a, .om-link {
+  color: var(--om-link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--om-dur-base) var(--om-ease-standard);
+}
+a:hover { border-bottom-color: currentColor; }
+a:active { color: var(--om-link-active); }
+
+::selection { background: var(--om-gold-soft); color: var(--om-ink); }

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Tags & Pills</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 32px; background: var(--om-canvas); font-family: var(--om-font-sans); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--om-radius-pill); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
+  .t-gold { background: var(--om-gold-soft); color: var(--om-on-gold); }
+  .t-sage { background: rgba(78, 107, 63, 0.14); color: var(--om-sage-deep); }
+  .t-coral { background: rgba(192, 58, 59, 0.12); color: var(--om-coral-deep); }
+  .t-lilac { background: var(--om-lilac); color: var(--om-indigo-deep); }
+  .t-mono { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); color: var(--om-body); }
+  .t-warn { background: rgba(196, 147, 33, 0.18); color: var(--om-warning); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  h4 { font-size: 13px; font-weight: 500; color: var(--om-muted); margin: 0 0 6px 0; }
+</style>
+</head>
+<body>
+<h4>Program type</h4>
+<div class="row">
+  <span class="tag t-gold">Флагманская методика</span>
+  <span class="tag t-lilac">Психотерапевтическая группа</span>
+  <span class="tag t-coral">Для подростков</span>
+  <span class="tag t-sage">Онлайн-программа</span>
+  <span class="tag t-mono">Финансовая психология</span>
+</div>
+<h4>Status</h4>
+<div class="row">
+  <span class="tag t-sage"><span class="dot"></span>Подходит</span>
+  <span class="tag t-warn"><span class="dot"></span>Осталось 2 места</span>
+  <span class="tag t-coral"><span class="dot"></span>Срочно</span>
+  <span class="tag t-mono">4-дневный курс</span>
+  <span class="tag t-mono">Интенсив</span>
+</div>
+</body>
+</html>

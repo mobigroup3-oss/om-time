@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Iconography</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  body { margin: 0; padding: 22px 28px; background: var(--om-canvas); font-family: var(--om-font-sans); }
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+  .cell { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-md); padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 92px; justify-content: center; }
+  .cell svg { width: 22px; height: 22px; color: var(--om-ink); stroke-width: 1.5; }
+  .lbl { font-size: 10px; color: var(--om-muted); text-align: center; line-height: 1.2; font-family: var(--om-font-mono); }
+  .meta { margin-top: 14px; font-size: 12px; color: var(--om-muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="cell"><i data-lucide="scale"></i><span class="lbl">scale</span></div>
+  <div class="cell"><i data-lucide="moon"></i><span class="lbl">moon</span></div>
+  <div class="cell"><i data-lucide="candy"></i><span class="lbl">candy</span></div>
+  <div class="cell"><i data-lucide="square-user"></i><span class="lbl">mirror</span></div>
+  <div class="cell"><i data-lucide="wind"></i><span class="lbl">breath</span></div>
+  <div class="cell"><i data-lucide="activity"></i><span class="lbl">physiology</span></div>
+  <div class="cell"><i data-lucide="shield-check"></i><span class="lbl">license</span></div>
+  <div class="cell"><i data-lucide="calendar-days"></i><span class="lbl">schedule</span></div>
+  <div class="cell"><i data-lucide="user-round"></i><span class="lbl">trainer</span></div>
+  <div class="cell"><i data-lucide="monitor"></i><span class="lbl">online</span></div>
+  <div class="cell"><i data-lucide="map-pin"></i><span class="lbl">offline</span></div>
+  <div class="cell"><i data-lucide="triangle-alert"></i><span class="lbl">crisis</span></div>
+  <div class="cell"><i data-lucide="circle-dot"></i><span class="lbl">meditation</span></div>
+  <div class="cell"><i data-lucide="message-circle"></i><span class="lbl">chat</span></div>
+  <div class="cell"><i data-lucide="check"></i><span class="lbl">подходит</span></div>
+  <div class="cell"><i data-lucide="x"></i><span class="lbl">не подходит</span></div>
+</div>
+<div class="meta">Lucide · stroke-weight 1.5 · monochrome · inherits text color · no emoji anywhere</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

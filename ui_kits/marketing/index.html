@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OM Time — Снижение веса через работу с сознанием</title>
+  <meta name="description" content="Авторская методика «Вес идеальности» — четыре дня интенсива, два месяца сопровождения. Лицензированная клиническая методика, Алматы и онлайн.">
+  <link rel="icon" type="image/png" href="../../assets/om-time-favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&display=swap">
+
+  <link rel="stylesheet" href="../../colors_and_type.css">
+  <link rel="stylesheet" href="page.css">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="om-splash" id="om-splash" aria-hidden="true">
+    <div class="om-splash-mark">
+      <img src="../../assets/om-time-mark.png" alt="">
+    </div>
+    <div class="om-splash-line"><span></span></div>
+    <div class="om-splash-meta">центр современных психотехнологий</div>
+  </div>
+
+  <div class="om-grain" aria-hidden="true"></div>
+
+  <div class="om-progress" aria-hidden="true"><span id="om-progress-bar"></span></div>
+
+  <div id="root"></div>
+
+  <script type="text/babel" src="Header.jsx"></script>
+  <script type="text/babel" src="Hero.jsx"></script>
+  <script type="text/babel" src="TrustNumbers.jsx"></script>
+  <script type="text/babel" src="PainCards.jsx"></script>
+  <script type="text/babel" src="MethodologyLevels.jsx"></script>
+  <script type="text/babel" src="IntensiveDays.jsx"></script>
+  <script type="text/babel" src="ComparisonTable.jsx"></script>
+  <script type="text/babel" src="Schedule.jsx"></script>
+  <script type="text/babel" src="Suitability.jsx"></script>
+  <script type="text/babel" src="Testimonials.jsx"></script>
+  <script type="text/babel" src="FAQ.jsx"></script>
+  <script type="text/babel" src="CtaBand.jsx"></script>
+  <script type="text/babel" src="Footer.jsx"></script>
+
+  <script type="text/babel">
+    function App() {
+      const [active, setActive] = React.useState('home');
+
+      React.useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      });
+
+      return (
+        <div className="om-page" id="top">
+          <Header active={active} onNav={setActive} />
+          <main>
+            <Hero />
+            <TrustNumbers />
+            <PainCards />
+            <MethodologyLevels />
+            <IntensiveDays />
+            <ComparisonTable />
+            <Schedule />
+            <Suitability />
+            <Testimonials />
+            <FAQ />
+            <CtaBand />
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script src="animations.js"></script>
+</body>
+</html>

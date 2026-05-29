@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Elevation</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 32px 28px; background: var(--om-canvas); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .tile { width: 130px; height: 90px; background: var(--om-canvas-white); border-radius: var(--om-radius-md); }
+  .name { font-size: 13px; font-weight: 500; color: var(--om-ink); }
+  .token { font-family: var(--om-font-mono); font-size: 11px; color: var(--om-muted); }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="cell">
+    <div class="tile" style="box-shadow: none; border: 1px solid var(--om-hairline);"></div>
+    <div style="text-align:center;"><div class="name">Flat</div><div class="token">--om-shadow-none</div></div>
+  </div>
+  <div class="cell">
+    <div class="tile" style="box-shadow: var(--om-shadow-hairline);"></div>
+    <div style="text-align:center;"><div class="name">Hairline</div><div class="token">--om-shadow-hairline</div></div>
+  </div>
+  <div class="cell">
+    <div class="tile" style="box-shadow: var(--om-shadow-card);"></div>
+    <div style="text-align:center;"><div class="name">Card</div><div class="token">--om-shadow-card</div></div>
+  </div>
+  <div class="cell">
+    <div class="tile" style="box-shadow: var(--om-shadow-lifted);"></div>
+    <div style="text-align:center;"><div class="name">Lifted</div><div class="token">--om-shadow-lifted</div></div>
+  </div>
+</div>
+</body>
+</html>

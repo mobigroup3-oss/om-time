@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Записаться — OM Time</title>
+  <meta name="description" content="Запись на программы OM Time — «Вес идеальности», клубные дни, подростковый клуб, ONLINE DETOX. Три шага: программа, дата, контакты. Первая консультация бесплатно.">
+  <link rel="icon" type="image/png" href="../../assets/om-time-favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&display=swap">
+
+  <link rel="stylesheet" href="../../colors_and_type.css">
+  <link rel="stylesheet" href="page.css">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="om-splash" id="om-splash" aria-hidden="true">
+    <div class="om-splash-mark">
+      <img src="../../assets/om-time-mark.png" alt="">
+    </div>
+    <div class="om-splash-line"><span></span></div>
+    <div class="om-splash-meta">центр современных психотехнологий</div>
+  </div>
+
+  <div class="om-grain" aria-hidden="true"></div>
+
+  <div class="om-progress" aria-hidden="true"><span id="om-progress-bar"></span></div>
+
+  <div id="root"></div>
+
+  <script type="text/babel" src="Header.jsx"></script>
+  <script type="text/babel" src="Footer.jsx"></script>
+  <script type="text/babel" src="BookingPage.jsx"></script>
+
+  <script type="text/babel">
+    function App() {
+      React.useEffect(function() {
+        if (window.lucide) window.lucide.createIcons();
+      });
+
+      return (
+        <div className="om-page" id="top">
+          <Header active="booking" onNav={function(){}} />
+          <main>
+            <BookingPage />
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    (function () {
+      var splash = document.getElementById('om-splash');
+      function dismiss() {
+        if (splash) { splash.classList.add('om-splash-out'); }
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        var root = document.getElementById('root');
+        var attempts = 0;
+        var check = setInterval(function () {
+          if ((root && root.children.length > 0) || attempts > 40) {
+            clearInterval(check);
+            setTimeout(dismiss, 200);
+          }
+          attempts++;
+        }, 100);
+      });
+
+      window.addEventListener('scroll', function () {
+        var bar = document.getElementById('om-progress-bar');
+        if (!bar) return;
+        var pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+        bar.style.width = Math.min(pct, 100) + '%';
+      }, { passive: true });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function waitForReact(cb, attempts) {
+        attempts = attempts || 0;
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          cb();
+        } else if (attempts < 60) {
+          setTimeout(function () { waitForReact(cb, attempts + 1); }, 100);
+        }
+      }
+
+      waitForReact(function () {
+        if (typeof gsap === 'undefined') return;
+        gsap.registerPlugin(ScrollTrigger);
+
+        /* Header glass */
+        var header = document.querySelector('[data-animate="header"]');
+        if (header) {
+          ScrollTrigger.create({
+            start: 'top -60',
+            onUpdate: function (self) {
+              var p = Math.min(self.progress * 10, 1);
+              gsap.set(header, {
+                backdropFilter: 'blur(' + (p * 16) + 'px)',
+                boxShadow: '0 1px 0 rgba(27,24,64,' + (p * 0.08) + ')',
+                background: 'rgba(251,248,242,' + (0.72 + p * 0.23) + ')',
+              });
+            }
+          });
+        }
+
+        if (prefersReduced) {
+          gsap.utils.toArray('[data-animate]').forEach(function (el) {
+            gsap.fromTo(el, { opacity: 0 }, {
+              opacity: 1, duration: 0.4,
+              scrollTrigger: { trigger: el, start: 'top 90%' }
+            });
+          });
+          return;
+        }
+
+        /* Hero entrance */
+        var hero = document.querySelector('[data-animate="booking-hero"]');
+        if (hero) {
+          var tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+          var children = Array.from(hero.children);
+          if (children[0]) tl.from(children[0], { y: 10, opacity: 0, duration: 0.45 });
+          if (children[1]) tl.from(children[1], { y: 40, opacity: 0, duration: 0.7 }, '-=0.25');
+          if (children[2]) tl.from(children[2], { y: 22, opacity: 0, duration: 0.55 }, '-=0.3');
+          if (children[3]) tl.from(
+            Array.from(children[3].children),
+            { y: 14, opacity: 0, duration: 0.4, stagger: 0.1 }, '-=0.2'
+          );
+        }
+
+        var heroCard = document.querySelector('[data-animate="booking-hero-card"]');
+        if (heroCard) {
+          gsap.from(heroCard, {
+            x: 40, opacity: 0, scale: 0.96, duration: 0.85, ease: 'power2.out', delay: 0.15
+          });
+        }
+
+        /* Steps card entrance (re-runs on step change) */
+        var stepCard = document.querySelector('[data-animate="booking-step"]');
+        if (stepCard) {
+          gsap.from(stepCard, {
+            y: 30, opacity: 0, duration: 0.55, ease: 'power2.out',
+            scrollTrigger: { trigger: stepCard, start: 'top 88%' }
+          });
+        }
+
+        /* Programs / events / reass cards */
+        ScrollTrigger.batch('[data-animate="booking-program"]', {
+          start: 'top 88%',
+          onEnter: function (batch) {
+            gsap.from(batch, {
+              y: 30, opacity: 0, duration: 0.5,
+              stagger: 0.06, ease: 'power2.out', clearProps: 'transform,opacity'
+            });
+          }
+        });
+
+        ScrollTrigger.batch('[data-animate="booking-event"]', {
+          start: 'top 90%',
+          onEnter: function (batch) {
+            gsap.from(batch, {
+              x: 28, opacity: 0, duration: 0.45,
+              stagger: 0.06, ease: 'power2.out', clearProps: 'transform,opacity'
+            });
+          }
+        });
+
+        ScrollTrigger.batch('[data-animate="booking-reass"]', {
+          start: 'top 88%',
+          onEnter: function (batch) {
+            gsap.from(batch, {
+              y: 40, scale: 0.95, opacity: 0, duration: 0.55,
+              stagger: 0.08, ease: 'power3.out', clearProps: 'transform,opacity'
+            });
+          }
+        });
+
+        ScrollTrigger.refresh();
+      });
+    })();
+  </script>
+
+  <style>
+    @media (max-width: 1100px) {
+      .om-booking-steps-layout { grid-template-columns: 1fr !important; gap: 36px !important; }
+      .om-booking-summary { position: static !important; }
+    }
+    @media (max-width: 900px) {
+      .om-booking-hero-inner { grid-template-columns: 1fr !important; gap: 48px !important; }
+      .om-booking-hero-card { display: none !important; }
+      .om-booking-prog-grid { grid-template-columns: 1fr !important; }
+      .om-booking-reass-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .om-booking-faq-inner { grid-template-columns: 1fr !important; gap: 40px !important; }
+    }
+    @media (max-width: 560px) {
+      .om-booking-reass-grid { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</body>
+</html>

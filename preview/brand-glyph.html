@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Logo glyph</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 0; background: var(--om-canvas); }
+  .wrap { display: flex; gap: 24px; padding: 24px 32px; align-items: flex-end; }
+  .tile { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-md); padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .tile.gold { background: var(--om-gold); border-color: transparent; }
+  .tile.indigo { background: var(--om-indigo); border-color: transparent; }
+  .tile.coral { background: var(--om-coral); border-color: transparent; }
+  .tile img { display: block; }
+  .lbl { font-size: 12px; color: var(--om-muted); }
+  .tile.gold .lbl { color: var(--om-on-gold); opacity: 0.7; }
+  .tile.indigo .lbl, .tile.coral .lbl { color: rgba(251,248,242,0.7); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tile"><img src="../assets/om-time-mark.png" height="80"><span class="lbl">96 px · cream</span></div>
+  <div class="tile"><img src="../assets/om-time-mark.png" height="64"><span class="lbl">64 px · cream</span></div>
+  <div class="tile"><img src="../assets/om-time-mark.png" height="48"><span class="lbl">48 px · cream</span></div>
+  <div class="tile gold"><img src="../assets/om-time-mark.png" height="80"><span class="lbl">96 px · gold</span></div>
+  <div class="tile indigo"><img src="../assets/om-time-mark.png" height="80"><span class="lbl">96 px · indigo</span></div>
+  <div class="tile coral"><img src="../assets/om-time-mark.png" height="80"><span class="lbl">96 px · coral</span></div>
+</div>
+</body>
+</html>

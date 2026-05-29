@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Text colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 28px; background: var(--om-canvas); }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .cell { background: var(--om-canvas-white); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-md); padding: 16px; min-height: 110px; display: flex; flex-direction: column; justify-content: space-between; }
+  .sample { font-size: 20px; font-weight: 500; line-height: 1.1; }
+  .name { font-size: 12px; color: var(--om-muted); }
+  .hex { font-family: var(--om-font-mono); font-size: 11px; color: var(--om-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="cell">
+    <div class="sample" style="color: var(--om-ink);">Аа</div>
+    <div><div class="name">Ink · headings</div><div class="hex">#1B1840</div></div>
+  </div>
+  <div class="cell">
+    <div class="sample" style="color: var(--om-body);">Аа</div>
+    <div><div class="name">Body · paragraphs</div><div class="hex">#2E2B52</div></div>
+  </div>
+  <div class="cell">
+    <div class="sample" style="color: var(--om-muted);">Аа</div>
+    <div><div class="name">Muted · captions</div><div class="hex">#6B6890</div></div>
+  </div>
+  <div class="cell">
+    <div class="sample" style="color: var(--om-faint);">Аа</div>
+    <div><div class="name">Faint · disabled</div><div class="hex">#9C99B4</div></div>
+  </div>
+  <div class="cell">
+    <div class="sample" style="color: var(--om-link);">Аа</div>
+    <div><div class="name">Link · inline</div><div class="hex">#3A2EA0</div></div>
+  </div>
+</div>
+</body>
+</html>

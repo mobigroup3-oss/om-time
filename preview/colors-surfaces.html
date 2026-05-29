@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Surface palette</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 28px; background: var(--om-canvas); }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .swatch { border-radius: var(--om-radius-md); padding: 14px 12px; min-height: 110px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid transparent; }
+  .swatch.outlined { border-color: var(--om-hairline); }
+  .name { font-size: 13px; font-weight: 500; line-height: 1.2; }
+  .hex { font-family: var(--om-font-mono); font-size: 11px; opacity: 0.75; }
+  .token { font-family: var(--om-font-mono); font-size: 10px; opacity: 0.55; margin-top: 3px; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="swatch outlined" style="background: var(--om-canvas-white); color: var(--om-ink);">
+    <div><div class="name">Canvas white</div><div class="token">--om-canvas-white</div></div>
+    <div class="hex">#FFFFFF</div>
+  </div>
+  <div class="swatch outlined" style="background: var(--om-canvas); color: var(--om-ink);">
+    <div><div class="name">Canvas</div><div class="token">--om-canvas</div></div>
+    <div class="hex">#FBF8F2</div>
+  </div>
+  <div class="swatch" style="background: var(--om-canvas-soft); color: var(--om-ink);">
+    <div><div class="name">Canvas soft</div><div class="token">--om-canvas-soft</div></div>
+    <div class="hex">#F4EFE2</div>
+  </div>
+  <div class="swatch" style="background: var(--om-canvas-strong); color: var(--om-ink);">
+    <div><div class="name">Canvas strong</div><div class="token">--om-canvas-strong</div></div>
+    <div class="hex">#E8E2D3</div>
+  </div>
+  <div class="swatch" style="background: var(--om-cream); color: var(--om-ink);">
+    <div><div class="name">Cream</div><div class="token">--om-cream</div></div>
+    <div class="hex">#F2E3C4</div>
+  </div>
+</div>
+</body>
+</html>

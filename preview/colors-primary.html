@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>OM-Time · Primary palette</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px 28px; background: var(--om-canvas); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .swatch { border-radius: var(--om-radius-md); padding: 16px 14px; min-height: 110px; display: flex; flex-direction: column; justify-content: space-between; }
+  .name { font-size: 14px; font-weight: 500; line-height: 1.2; }
+  .hex { font-family: var(--om-font-mono); font-size: 12px; opacity: 0.75; }
+  .token { font-family: var(--om-font-mono); font-size: 11px; opacity: 0.6; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="swatch" style="background: var(--om-ink); color: #fff;">
+    <div><div class="name">Ink</div><div class="token">--om-ink</div></div>
+    <div class="hex">#1B1840</div>
+  </div>
+  <div class="swatch" style="background: var(--om-gold); color: var(--om-on-gold);">
+    <div><div class="name">Gold</div><div class="token">--om-gold</div></div>
+    <div class="hex">#F2C12E</div>
+  </div>
+  <div class="swatch" style="background: var(--om-coral); color: #fff;">
+    <div><div class="name">Coral</div><div class="token">--om-coral</div></div>
+    <div class="hex">#C03A3B</div>
+  </div>
+  <div class="swatch" style="background: var(--om-indigo); color: #fff;">
+    <div><div class="name">Indigo</div><div class="token">--om-indigo</div></div>
+    <div class="hex">#2E2470</div>
+  </div>
+</div>
+</body>
+</html>
