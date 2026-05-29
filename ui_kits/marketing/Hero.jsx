@@ -4,13 +4,26 @@
    Right column supports an image carousel managed from the admin panel
    (data stored in localStorage key "om-hero-carousel"). */
 
+const HERO_DEFAULT_SLIDES = [
+  { id: 'd2', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%202.png', label: '' },
+  { id: 'd3', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%203.png', label: '' },
+  { id: 'd4', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%204.png', label: '' },
+  { id: 'd5', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%205.png', label: '' },
+  { id: 'd6', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%206.png', label: '' },
+  { id: 'd7', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%207.png', label: '' },
+  { id: 'd8', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%208.png', label: '' },
+];
+
 function Hero() {
   const [slides, setSlides] = React.useState([]);
   const [activeIdx, setActiveIdx] = React.useState(0);
 
   function loadSlides() {
-    try { return JSON.parse(localStorage.getItem('om-hero-carousel') || '[]'); }
-    catch (e) { return []; }
+    try {
+      const saved = JSON.parse(localStorage.getItem('om-hero-carousel') || '[]');
+      return saved.length > 0 ? saved : HERO_DEFAULT_SLIDES;
+    }
+    catch (e) { return HERO_DEFAULT_SLIDES; }
   }
 
   React.useEffect(() => {
