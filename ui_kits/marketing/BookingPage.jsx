@@ -998,12 +998,8 @@ const bk = {
 /* ─────────────────────────────────────────────────────────── */
 
 function bookingReadInitialProgram() {
-  if (typeof window === 'undefined') return null;
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const pid = params.get('program');
-    if (pid && BOOKING_PROGRAMS.some(p => p.id === pid)) return pid;
-  } catch (_) {}
+  // По требованию окно «Ваш выбор» всегда открывается пустым: программа
+  // не предвыбирается из URL (?program=…), пользователь выбирает её сам.
   return null;
 }
 
@@ -1511,7 +1507,7 @@ function BookingPage() {
     }
   } else {
     stepContent = (
-      <form onSubmit={handleSubmit} noValidate style={bk.stepCard}>
+      <form onSubmit={handleSubmit} noValidate autoComplete="off" style={bk.stepCard}>
         <div style={bk.stepEyebrow}>Шаг 03 · Контактные данные</div>
         <h2 style={bk.stepH2}>Куда вам перезвонить?</h2>
         <p style={bk.stepSub}>
@@ -1526,7 +1522,7 @@ function BookingPage() {
             placeholder="Как к вам обращаться"
             value={form.name}
             error={errors.name}
-            autoComplete="given-name"
+            autoComplete="off"
             onChange={e => setForm({ ...form, name: e.target.value })}
           />
           <TextField
@@ -1536,7 +1532,7 @@ function BookingPage() {
             placeholder="+7 (___) ___-__-__"
             value={form.phone}
             error={errors.phone}
-            autoComplete="tel"
+            autoComplete="off"
             onChange={e => setForm({ ...form, phone: e.target.value })}
           />
           <TextField
@@ -1547,7 +1543,7 @@ function BookingPage() {
             value={form.email}
             error={errors.email}
             hint="Пришлём программу и&nbsp;ссылку на оплату"
-            autoComplete="email"
+            autoComplete="off"
             onChange={e => setForm({ ...form, email: e.target.value })}
           />
           <TextField
@@ -1555,7 +1551,7 @@ function BookingPage() {
             label="Город (необязательно)"
             placeholder="Алматы, Астана..."
             value={form.city}
-            autoComplete="address-level2"
+            autoComplete="off"
             onChange={e => setForm({ ...form, city: e.target.value })}
           />
 

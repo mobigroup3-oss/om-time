@@ -324,16 +324,17 @@ html.om-no-scroll, html.om-no-scroll body { overflow: hidden; }
   color: var(--om-muted);
 }
 .om-hero-meta .om-dot {
-  width: 6px; height: 6px;
+  width: 8px; height: 8px;
   background: var(--om-coral);
   border-radius: 50%;
   display: inline-block;
-  box-shadow: 0 0 0 0 rgba(192,58,59,0.6);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(192,58,59,0.7);
   animation: om-pulse 2.4s ease-out infinite;
 }
 @keyframes om-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(192,58,59,0.5); }
-  70% { box-shadow: 0 0 0 12px rgba(192,58,59,0); }
+  0% { box-shadow: 0 0 0 0 rgba(192,58,59,0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(192,58,59,0); }
   100% { box-shadow: 0 0 0 0 rgba(192,58,59,0); }
 }
 
@@ -1854,14 +1855,28 @@ html:not(.om-anim-ready) [data-animate] {
 @media (max-width: 900px) {
   .om-hero { padding: 96px 0 64px; }
   .om-hero-grid { grid-template-columns: 1fr; gap: 56px; }
-  /* Posters are 3:4 — match the container ratio so the full slide shows
-     instead of being cropped by a fixed height + object-fit: cover. */
+  /* Show the full 3:4 poster, then drop the "next event" card BELOW it
+     instead of overlapping (the overlap hid the slide). Also remove the
+     perspective context here — it softened the event-card text on mobile. */
   .om-hero-side {
     height: auto;
+    perspective: none;
+  }
+  .om-hero-card-stage {
+    position: relative;
+    inset: auto;
     aspect-ratio: 3 / 4;
     width: 100%;
     max-width: 400px;
     margin-inline: auto;
+  }
+  .om-hero-events {
+    position: static;
+    left: auto; right: auto; bottom: auto;
+    display: flex;
+    width: 100%;
+    max-width: 400px;
+    margin: 18px auto 0;
   }
   .om-hero-chip { left: 0; bottom: -16px; }
   .om-hero-meta { position: static; margin-bottom: 24px; }
@@ -2463,12 +2478,16 @@ html:not(.om-anim-ready) [data-animate] {
   .om-header-mark { width: 34px; height: 34px; }
   .om-header-inner { gap: 16px; }
   .om-header-nav,
-  .om-header-login,
-  .om-header-locale { display: none; }
+  .om-header-login { display: none; }
   .om-header-burger { display: flex; }
+  /* Keep the language switcher visible in the bar on mobile instead of
+     burying it in the drawer; drop the now-duplicate one inside the menu. */
+  .om-header-locale { display: flex; margin-right: 4px; }
+  .om-header-mobile-locale { display: none; }
 }
 @media (max-width: 520px) {
   .om-header-cta { display: none; }
+  .om-header-actions { gap: 10px; }
 }
 
 /* =====================================================================
@@ -2503,11 +2522,10 @@ html:not(.om-anim-ready) [data-animate] {
 
 /* Hero next-event card — keep it inside the viewport on small phones */
 @media (max-width: 560px) {
-  .om-hero-events { left: 0; right: 0; bottom: 6px; }
+  /* card flows below the poster (see max-width:900); allow text to wrap */
   .om-hero-events-name,
   .om-hero-events-trainer,
   .om-hero-events-price { white-space: normal; }
-  /* height/aspect-ratio inherited from the max-width:900 rule above */
 }
 
 /* Trim the generous 120px section rhythm on small screens */
