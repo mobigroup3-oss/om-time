@@ -520,6 +520,7 @@ function SchedEventCard({ event: ev }) {
 
   return (
     <div
+      className="om-resp-card-row"
       style={cardStyle}
       data-animate="sched-item"
       onMouseEnter={e => {
@@ -599,7 +600,7 @@ function SchedEventCard({ event: ev }) {
         )}
       </div>
 
-      <div style={sp.cardRight}>
+      <div className="om-resp-card-aside" style={sp.cardRight}>
         <div style={sp.cardPrice}>{ev.price}</div>
         {ev.priceNote && <div style={sp.cardPriceNote}>{ev.priceNote}</div>}
         {soldOut ? (

@@ -44,7 +44,7 @@ function Footer() {
   return (
     <footer style={ftStyles.band} id="contacts" data-screen-label="Marketing site / Footer">
       <div style={ftStyles.inner}>
-        <div style={ftStyles.top}>
+        <div className="om-footer-top" style={ftStyles.top}>
           <div style={ftStyles.brand} data-animate="footer-col">
             <div style={ftStyles.brandRow}>
               <img src="../../assets/om-time-mark.png" alt="" style={ftStyles.brandMark} />

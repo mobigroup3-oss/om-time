@@ -1519,7 +1519,7 @@ function BookingPage() {
           поможет администратору лучше подготовиться к&nbsp;звонку.
         </p>
 
-        <div style={bk.formGrid}>
+        <div className="om-resp-grid-2" style={bk.formGrid}>
           <TextField
             id="bk-name"
             label="Имя"

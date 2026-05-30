@@ -648,7 +648,7 @@ function TeamAvatar({ initials, bg, color, size = 72 }) {
 
 function TeamFeaturedCard({ member: m }) {
   return (
-    <div style={tm.featCard} data-animate="team-featured">
+    <div className="om-resp-featured" style={tm.featCard} data-animate="team-featured">
       <div style={tm.featAccent} aria-hidden="true" />
       <div style={tm.featBadge}>Основатель</div>
 
@@ -831,13 +831,13 @@ function TeamPage() {
           {showFeatured && <TeamFeaturedCard member={founder} />}
 
           {gridMembers.length > 0 && (
-            <div style={{ ...tm.teamGrid, marginTop: showFeatured ? 20 : 0 }}>
+            <div className="om-resp-grid-3" style={{ ...tm.teamGrid, marginTop: showFeatured ? 20 : 0 }}>
               {gridMembers.map(m => <TeamCard key={m.id} member={m} />)}
             </div>
           )}
 
           {!showFeatured && gridMembers.length === 0 && (
-            <div style={tm.teamGrid}>
+            <div className="om-resp-grid-3" style={tm.teamGrid}>
               <div style={tm.emptyState}>Специалисты не найдены</div>
             </div>
           )}
@@ -854,7 +854,7 @@ function TeamPage() {
             </div>
             <h2 style={tm.valuesH2}>Принципы работы</h2>
           </div>
-          <div style={tm.valuesGrid}>
+          <div className="om-resp-grid-3" style={tm.valuesGrid}>
             {VALUES.map(v => <ValueCard key={v.title} value={v} />)}
           </div>
         </div>

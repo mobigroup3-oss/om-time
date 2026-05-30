@@ -487,7 +487,7 @@ const pgStyles = {
 
 function ProgFeaturedCard({ program: p }) {
   return (
-    <div style={pgStyles.featCard} data-animate="prog-featured">
+    <div className="om-resp-featured" style={pgStyles.featCard} data-animate="prog-featured">
       <div style={pgStyles.featAccent}></div>
       <div style={pgStyles.featBadge}>Флагман</div>
       <div>
@@ -664,7 +664,7 @@ function ProgramsPage() {
           {showFeaturedBanner && <ProgFeaturedCard program={featuredProgram} />}
 
           {/* Grid */}
-          <div style={pgStyles.grid}>
+          <div className="om-resp-grid-3" style={pgStyles.grid}>
             {gridPrograms.length === 0 ? (
               <div style={pgStyles.emptyState}>Нет программ в этой категории</div>
             ) : (

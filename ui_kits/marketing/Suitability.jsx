@@ -253,14 +253,14 @@ function Suitability() {
     <section style={suitStyles.section} data-screen-label="Marketing site / Suitability">
       <div style={suitStyles.inner}>
 
-        <div style={suitStyles.head}>
+        <div className="om-suit-head" style={suitStyles.head}>
           <h2 style={suitStyles.h2}>Кому подходит<br/>и кому — нет</h2>
           <p style={suitStyles.sub}>
             Будем честны на берегу — методика создана не для всех. Это сила, а не слабость.
           </p>
         </div>
 
-        <div style={suitStyles.grid}>
+        <div className="om-suit-grid" style={suitStyles.grid}>
 
           {/* YES — кремовая тёплая карточка */}
           <div style={suitStyles.cardYes} data-animate="suit-left">

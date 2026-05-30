@@ -2260,3 +2260,351 @@ html:not(.om-anim-ready) [data-animate] {
   .om-about-tl::before { left: 15px; }
   .om-about-tl-dot { left: -41px; }
 }
+
+/* =====================================================================
+   HEADER — sticky bar + mobile burger drawer
+   Styles moved out of Header.jsx inline objects so media queries work.
+   ===================================================================== */
+
+.om-header {
+  --om-header-h: 84px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--om-header-h);
+  display: flex;
+  align-items: center;
+  background: rgba(251, 248, 242, 0.72);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s, border-color 0.3s, height 0.3s;
+}
+.om-header-inner {
+  width: 100%;
+  max-width: var(--om-container-max);
+  margin: 0 auto;
+  padding: 0 var(--om-container-pad);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 32px;
+}
+.om-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--om-ink);
+  border-bottom: none;
+}
+.om-header-brand:hover { border-bottom: none; }
+.om-header-mark { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
+.om-header-brand-text { display: flex; flex-direction: column; line-height: 1; }
+.om-header-brand-name { font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+.om-header-brand-sub {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--om-muted);
+  margin-top: 4px;
+}
+.om-header-nav {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  font-family: var(--om-font-sans);
+}
+.om-header-link {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--om-body);
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  padding-bottom: 4px;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s var(--om-ease-standard), border-color 0.2s var(--om-ease-standard);
+}
+.om-header-link:hover { color: var(--om-ink); border-bottom-color: var(--om-ink); }
+.om-header-link.is-active { color: var(--om-ink); border-bottom-color: var(--om-ink); }
+.om-header-actions { display: flex; align-items: center; gap: 14px; }
+.om-header-locale {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--om-muted);
+  display: flex;
+  gap: 8px;
+  margin-right: 8px;
+}
+.om-header-locale .is-active { color: var(--om-ink); }
+
+/* Burger button — hidden on desktop, shown < 900px */
+.om-header-burger {
+  display: none;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0;
+  margin-left: 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.om-header-burger span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--om-ink);
+  transition: transform 0.3s var(--om-ease-standard), opacity 0.2s var(--om-ease-standard);
+}
+.om-header-burger.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.om-header-burger.is-open span:nth-child(2) { opacity: 0; }
+.om-header-burger.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile drawer */
+.om-header-mobile {
+  position: fixed;
+  top: var(--om-header-h);
+  left: 0;
+  right: 0;
+  z-index: 49;
+  background: var(--om-canvas);
+  border-top: 1px solid var(--om-hairline);
+  box-shadow: var(--om-shadow-lifted);
+  padding: 12px var(--om-container-pad) 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(100vh - var(--om-header-h));
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-12px);
+  transition: opacity 0.28s var(--om-ease-standard),
+              transform 0.28s var(--om-ease-standard),
+              visibility 0.28s var(--om-ease-standard);
+}
+.om-header-mobile.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
+.om-header-mobile-nav { display: flex; flex-direction: column; }
+.om-header-mobile-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 2px;
+  font-family: var(--om-font-sans);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--om-ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--om-hairline-soft);
+}
+.om-header-mobile-link:hover { border-bottom-color: var(--om-hairline-soft); }
+.om-header-mobile-link.is-active { color: var(--om-coral-deep); }
+.om-header-mobile-foot { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.om-header-mobile-locale {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--om-muted);
+}
+.om-header-mobile-locale .is-active { color: var(--om-ink); }
+
+/* Scrim behind the drawer */
+.om-header-scrim {
+  position: fixed;
+  top: var(--om-header-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 48;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(27, 24, 64, 0.38);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s var(--om-ease-standard), visibility 0.28s var(--om-ease-standard);
+}
+.om-header-scrim.is-open { opacity: 1; visibility: visible; }
+
+@media (min-width: 901px) {
+  .om-header-mobile,
+  .om-header-scrim { display: none; }
+}
+
+@media (max-width: 900px) {
+  .om-header { --om-header-h: 64px; }
+  .om-header-mark { width: 34px; height: 34px; }
+  .om-header-inner { gap: 16px; }
+  .om-header-nav,
+  .om-header-login,
+  .om-header-locale { display: none; }
+  .om-header-burger { display: flex; }
+}
+@media (max-width: 520px) {
+  .om-header-cta { display: none; }
+}
+
+/* =====================================================================
+   GLOBAL MOBILE ADJUSTMENTS
+   Responsive container padding (the token stayed at 48px on every
+   breakpoint), overflow guard, and fixes for inline-styled blocks.
+   ===================================================================== */
+
+@media (max-width: 900px) {
+  :root { --om-container-pad: 32px; }
+  /* Prevent stray absolute/wide elements from causing horizontal scroll.
+     Methodology pin is disabled < 900px, so clipping is safe here. */
+  .om-page { overflow-x: hidden; }
+}
+@media (max-width: 600px) {
+  :root { --om-container-pad: 20px; }
+}
+
+/* Footer sitemap (inline grid in Footer.jsx) */
+@media (max-width: 900px) {
+  .om-footer-top { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+}
+@media (max-width: 600px) {
+  .om-footer-top { grid-template-columns: 1fr !important; gap: 28px !important; }
+}
+
+/* Suitability head + split (inline grids in Suitability.jsx) */
+@media (max-width: 760px) {
+  .om-suit-head { grid-template-columns: 1fr !important; gap: 16px !important; margin-bottom: 40px !important; }
+  .om-suit-grid { grid-template-columns: 1fr !important; gap: 18px !important; }
+}
+
+/* Hero next-event card — keep it inside the viewport on small phones */
+@media (max-width: 560px) {
+  .om-hero-events { left: 0; right: 0; bottom: 6px; }
+  .om-hero-events-name,
+  .om-hero-events-trainer,
+  .om-hero-events-price { white-space: normal; }
+  .om-hero-side { height: 360px; }
+}
+
+/* Trim the generous 120px section rhythm on small screens */
+@media (max-width: 600px) {
+  .om-trust,
+  .om-pains,
+  .om-compare,
+  .om-testimonials,
+  .om-cta { padding-top: 72px; padding-bottom: 72px; }
+  .om-intensive { padding-top: 80px; padding-bottom: 80px; }
+}
+
+/* =====================================================================
+   RESPONSIVE UTILITIES FOR INLINE-STYLED INNER PAGES
+   The internal *Page.jsx files set grids via inline style objects, which
+   media queries can't reach. These classes are attached alongside the
+   inline style; CSS `!important` overrides inline declarations that lack
+   `!important`, so the columns collapse correctly on small screens.
+   ===================================================================== */
+
+/* Two-column hero / split (1fr Xfr, Xfr 1fr, fixed-px + 1fr) → single col */
+@media (max-width: 860px) {
+  .om-resp-split { grid-template-columns: 1fr !important; }
+}
+.om-resp-split { gap: 48px; }
+@media (max-width: 860px) {
+  .om-resp-split { gap: 40px !important; }
+}
+
+/* Featured banner card (1fr ~210px) → stacked */
+@media (max-width: 760px) {
+  .om-resp-featured {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  /* its right column dropped its top padding once stacked */
+  .om-resp-featured > * { padding-top: 0 !important; }
+}
+
+/* 3-up card grid → 2-up then 1-up */
+@media (max-width: 900px) {
+  .om-resp-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 600px) {
+  .om-resp-grid-3 { grid-template-columns: 1fr !important; }
+}
+
+/* 4-up card grid → 2-up then 1-up */
+@media (max-width: 900px) {
+  .om-resp-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 540px) {
+  .om-resp-grid-4 { grid-template-columns: 1fr !important; }
+}
+
+/* 2-up row (form pairs, 2-col splits) → single col */
+@media (max-width: 640px) {
+  .om-resp-grid-2 { grid-template-columns: 1fr !important; }
+}
+
+/* Generic schedule/list card: label + price/cta side-by-side → stacked */
+@media (max-width: 640px) {
+  .om-resp-card-row {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .om-resp-card-row .om-resp-card-aside {
+    align-items: flex-start !important;
+    text-align: left !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ── About page — targets existing classNames in AboutPage.jsx ────── */
+@media (max-width: 860px) {
+  .om-about-mission-inner,
+  .om-about-tl-inner,
+  .om-about-location-inner { grid-template-columns: 1fr !important; gap: 40px !important; }
+  .om-about-pillars-head,
+  [data-animate="about-lic-head"] { grid-template-columns: 1fr !important; gap: 16px !important; }
+}
+@media (max-width: 900px) {
+  .om-about-pillars-grid,
+  .om-about-licenses-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 600px) {
+  .om-about-pillars-grid,
+  .om-about-licenses-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 900px) {
+  .om-about-values-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 540px) {
+  .om-about-values-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Contacts page — targets existing classNames in ContactsPage.jsx ─ */
+@media (max-width: 860px) {
+  .om-contacts-hero-inner,
+  .om-contacts-form-inner,
+  .om-contacts-address-inner { grid-template-columns: 1fr !important; gap: 40px !important; }
+}
+@media (max-width: 900px) {
+  .om-contacts-channels-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 540px) {
+  .om-contacts-channels-grid { grid-template-columns: 1fr !important; }
+}

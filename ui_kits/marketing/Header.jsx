@@ -1,80 +1,10 @@
-/* Header.jsx — top navigation. Sticky, glass on scroll, editorial. */
-
-const headerStyles = {
-  bar: {
-    position: 'sticky',
-    top: 0,
-    zIndex: 50,
-    height: 84,
-    display: 'flex',
-    alignItems: 'center',
-    background: 'rgba(251, 248, 242, 0.72)',
-    backdropFilter: 'blur(10px) saturate(1.2)',
-    WebkitBackdropFilter: 'blur(10px) saturate(1.2)',
-    borderBottom: '1px solid transparent',
-    transition: 'background 0.3s, border-color 0.3s',
-  },
-  inner: {
-    width: '100%',
-    maxWidth: 'var(--om-container-max)',
-    margin: '0 auto',
-    padding: '0 var(--om-container-pad)',
-    display: 'grid',
-    gridTemplateColumns: 'auto 1fr auto',
-    alignItems: 'center',
-    gap: 32,
-  },
-  brand: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    textDecoration: 'none',
-    color: 'var(--om-ink)',
-  },
-  brandMark: { width: 42, height: 42, objectFit: 'contain' },
-  brandText: {
-    display: 'flex',
-    flexDirection: 'column',
-    lineHeight: 1,
-  },
-  brandName: { fontSize: 18, fontWeight: 500, letterSpacing: '-0.01em' },
-  brandSub: {
-    fontSize: 10,
-    letterSpacing: '0.2em',
-    textTransform: 'uppercase',
-    color: 'var(--om-muted)',
-    marginTop: 4,
-  },
-  nav: {
-    display: 'flex',
-    gap: 28,
-    justifyContent: 'center',
-    fontFamily: 'var(--om-font-sans)',
-  },
-  navLink: {
-    fontSize: 13,
-    fontWeight: 500,
-    letterSpacing: '0.04em',
-    color: 'var(--om-body)',
-    textDecoration: 'none',
-    cursor: 'pointer',
-    position: 'relative',
-    paddingBottom: 4,
-  },
-  right: { display: 'flex', alignItems: 'center', gap: 14 },
-  locale: {
-    fontSize: 11,
-    fontWeight: 500,
-    letterSpacing: '0.12em',
-    color: 'var(--om-muted)',
-    display: 'flex',
-    gap: 8,
-    marginRight: 8,
-  },
-  localeActive: { color: 'var(--om-ink)' },
-};
+/* Header.jsx — top navigation. Sticky, glass on scroll, editorial.
+   Responsive: full nav on desktop, collapses to a burger drawer < 900px.
+   Styling lives in page.css (.om-header*) so media queries can control it. */
 
 function Header({ active = 'programs', onNav }) {
+  const [open, setOpen] = React.useState(false);
+
   const path = typeof window !== 'undefined'
     ? window.location.pathname.replace(/\\/g, '/')
     : '';
@@ -91,58 +21,126 @@ function Header({ active = 'programs', onNav }) {
 
   const logoHref = isSubPage ? 'index.html' : '#top';
 
+  // Lock body scroll while the mobile drawer is open.
+  React.useEffect(() => {
+    document.documentElement.classList.toggle('om-no-scroll', open);
+    return () => document.documentElement.classList.remove('om-no-scroll');
+  }, [open]);
+
+  // Close on Escape, and auto-close if the viewport grows back to desktop.
+  React.useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') setOpen(false); }
+    function onResize() { if (window.innerWidth > 900) setOpen(false); }
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+
+  function navClick(item, e) {
+    if (!item.external && !isSubPage) {
+      e.preventDefault();
+      onNav && onNav(item.id);
+    }
+    setOpen(false);
+  }
+
+  function brandClick(e) {
+    if (!isSubPage) {
+      e.preventDefault();
+      onNav && onNav('home');
+    }
+    setOpen(false);
+  }
+
   return (
-    <header style={headerStyles.bar} data-screen-label="Marketing site / Header" data-animate="header">
-      <div style={headerStyles.inner}>
-        <a
-          href={logoHref}
-          style={headerStyles.brand}
-          onClick={isSubPage ? undefined : (e) => { e.preventDefault(); onNav && onNav('home'); }}
-        >
-          <img src="../../assets/om-time-mark.png" alt="" style={headerStyles.brandMark} />
-          <span style={headerStyles.brandText}>
-            <span style={headerStyles.brandName}>OM Time</span>
-            <span style={headerStyles.brandSub}>est. 2017 · алматы</span>
+    <header className="om-header" data-screen-label="Marketing site / Header" data-animate="header">
+      <div className="om-header-inner">
+        <a className="om-header-brand" href={logoHref} onClick={brandClick}>
+          <img src="../../assets/om-time-mark.png" alt="" className="om-header-mark" />
+          <span className="om-header-brand-text">
+            <span className="om-header-brand-name">OM Time</span>
+            <span className="om-header-brand-sub">est. 2017 · алматы</span>
           </span>
         </a>
-        <nav style={headerStyles.nav}>
+
+        <nav className="om-header-nav">
           {items.map(i => (
             <a
               key={i.id}
               href={i.href}
-              style={{
-                ...headerStyles.navLink,
-                color: active === i.id ? 'var(--om-ink)' : 'var(--om-body)',
-                borderBottom: active === i.id ? '1px solid var(--om-ink)' : '1px solid transparent',
-              }}
-              onClick={i.external || isSubPage ? undefined : (e) => { e.preventDefault(); onNav && onNav(i.id); }}
+              className={'om-header-link' + (active === i.id ? ' is-active' : '')}
+              onClick={(e) => navClick(i, e)}
             >
               {i.label}
             </a>
           ))}
         </nav>
-        <div style={headerStyles.right}>
-          <div style={headerStyles.locale}>
-            <span style={headerStyles.localeActive}>RU</span>
+
+        <div className="om-header-actions">
+          <div className="om-header-locale">
+            <span className="is-active">RU</span>
             <span>KZ</span>
             <span>EN</span>
           </div>
-          <a
-            className="om-btn om-btn--ghost"
-            href="../account/account.html"
-            style={{ textDecoration: 'none' }}
-          >
+          <a className="om-btn om-btn--ghost om-header-login" href="../account/account.html" style={{ textDecoration: 'none' }}>
             Войти
           </a>
-          <a
-            className="om-btn om-btn--primary"
-            href="booking.html"
-            style={{ textDecoration: 'none' }}
-          >
+          <a className="om-btn om-btn--primary om-header-cta" href="booking.html" style={{ textDecoration: 'none' }}>
             Записаться
           </a>
+          <button
+            type="button"
+            className={'om-header-burger' + (open ? ' is-open' : '')}
+            aria-label={open ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={open}
+            aria-controls="om-mobile-menu"
+            onClick={() => setOpen(o => !o)}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
         </div>
       </div>
+
+      <div id="om-mobile-menu" className={'om-header-mobile' + (open ? ' is-open' : '')}>
+        <nav className="om-header-mobile-nav">
+          {items.map(i => (
+            <a
+              key={i.id}
+              href={i.href}
+              className={'om-header-mobile-link' + (active === i.id ? ' is-active' : '')}
+              onClick={(e) => navClick(i, e)}
+            >
+              {i.label}
+            </a>
+          ))}
+        </nav>
+        <div className="om-header-mobile-foot">
+          <a className="om-btn om-btn--primary" href="booking.html" onClick={() => setOpen(false)} style={{ textDecoration: 'none', width: '100%', justifyContent: 'center' }}>
+            Записаться
+          </a>
+          <a className="om-btn om-btn--secondary" href="../account/account.html" onClick={() => setOpen(false)} style={{ textDecoration: 'none', width: '100%', justifyContent: 'center' }}>
+            Войти
+          </a>
+          <div className="om-header-mobile-locale">
+            <span className="is-active">RU</span>
+            <span>KZ</span>
+            <span>EN</span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        className={'om-header-scrim' + (open ? ' is-open' : '')}
+        onClick={() => setOpen(false)}
+      ></button>
     </header>
   );
 }

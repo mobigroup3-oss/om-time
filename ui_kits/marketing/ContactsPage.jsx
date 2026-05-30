@@ -481,7 +481,7 @@ function ContactForm() {
     <div style={ct.formCard} data-animate="contact-form">
       <h3 style={ct.formCardTitle}>Оставить заявку</h3>
       <form onSubmit={handleSubmit} noValidate>
-        <div style={ct.formRowTwo}>
+        <div className="om-resp-grid-2" style={ct.formRowTwo}>
           <div>
             <label style={ct.formLabel}>Имя</label>
             <input
