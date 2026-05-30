@@ -1854,7 +1854,15 @@ html:not(.om-anim-ready) [data-animate] {
 @media (max-width: 900px) {
   .om-hero { padding: 96px 0 64px; }
   .om-hero-grid { grid-template-columns: 1fr; gap: 56px; }
-  .om-hero-side { height: 420px; }
+  /* Posters are 3:4 — match the container ratio so the full slide shows
+     instead of being cropped by a fixed height + object-fit: cover. */
+  .om-hero-side {
+    height: auto;
+    aspect-ratio: 3 / 4;
+    width: 100%;
+    max-width: 400px;
+    margin-inline: auto;
+  }
   .om-hero-chip { left: 0; bottom: -16px; }
   .om-hero-meta { position: static; margin-bottom: 24px; }
 }
@@ -2499,7 +2507,7 @@ html:not(.om-anim-ready) [data-animate] {
   .om-hero-events-name,
   .om-hero-events-trainer,
   .om-hero-events-price { white-space: normal; }
-  .om-hero-side { height: 360px; }
+  /* height/aspect-ratio inherited from the max-width:900 rule above */
 }
 
 /* Trim the generous 120px section rhythm on small screens */
@@ -2607,4 +2615,17 @@ html:not(.om-anim-ready) [data-animate] {
 }
 @media (max-width: 540px) {
   .om-contacts-channels-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Booking page — targets classNames in BookingPage.jsx ─────────── */
+@media (max-width: 900px) {
+  /* The steps layout is a 2-col grid (1.6fr / 1fr) set inline. Without a
+     collapse it stays two columns on phones: the summary gets squeezed into
+     a tiny column, its content overflows, and the sticky position makes it
+     look frozen / "not updating". Stack it and drop the sticky. */
+  .om-booking-steps-layout { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .om-booking-summary { position: static !important; top: auto !important; }
+}
+@media (max-width: 520px) {
+  .om-booking-prog-grid { grid-template-columns: 1fr !important; }
 }
