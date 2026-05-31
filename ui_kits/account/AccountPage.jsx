@@ -21,6 +21,7 @@ window.LucideIcon = LucideIcon;
 
 const NAV_ITEMS = [
   { group: 'Управление', items: [
+    { id: 'analytics', label: 'Аналитика',     icon: 'bar-chart-3',   adminOnly: true },
     { id: 'schedule',  label: 'Расписание',    icon: 'calendar-days', adminOnly: true },
     { id: 'carousel',  label: 'Карусель Hero', icon: 'image',         adminOnly: true },
     { id: 'programs',  label: 'Программы',     icon: 'layout-grid',   adminOnly: true },
@@ -34,7 +35,7 @@ const NAV_ITEMS = [
 ];
 
 function AccountPage() {
-  const [section, setSection] = React.useState('schedule');
+  const [section, setSection] = React.useState('analytics');
   const [eventsCount, setEventsCount] = React.useState(null);
 
   // Подхватываем количество событий из редактора расписания через окно
@@ -45,6 +46,7 @@ function AccountPage() {
 
 
   function renderSection() {
+    if (section === 'analytics') return <AdminAnalytics />;
     if (section === 'schedule')  return <AdminScheduleEditor />;
     if (section === 'carousel')  return <AdminHeroCarousel />;
     if (section === 'programs')  return <AdminProgramsEditor />;
