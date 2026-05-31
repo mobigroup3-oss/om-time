@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "trailingSlash": true,
   "redirects": [
     { "source": "/", "destination": "/ui_kits/marketing/", "permanent": false }
   ]
