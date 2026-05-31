@@ -47,6 +47,7 @@ function AccountPage() {
   function renderSection() {
     if (section === 'schedule')  return <AdminScheduleEditor />;
     if (section === 'carousel')  return <AdminHeroCarousel />;
+    if (section === 'programs')  return <AdminProgramsEditor />;
     return <PlaceholderSection id={section} />;
   }
 
