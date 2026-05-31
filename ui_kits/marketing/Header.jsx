@@ -8,7 +8,10 @@ function Header({ active = 'programs', onNav }) {
   const path = typeof window !== 'undefined'
     ? window.location.pathname.replace(/\\/g, '/')
     : '';
-  const isSubPage = path.includes('programs.html') || path.includes('schedule.html') || path.includes('team.html') || path.includes('reviews.html') || path.includes('about.html') || path.includes('contacts.html') || path.includes('booking.html');
+  // Имя страницы без расширения — работает и с .html, и с чистыми URL (Vercel cleanUrls).
+  const SUBPAGES = ['programs', 'schedule', 'team', 'reviews', 'about', 'contacts', 'booking'];
+  const pageName = path.split('/').pop().replace(/\.html$/, '');
+  const isSubPage = SUBPAGES.includes(pageName);
 
   const items = [
     { id: 'programs', label: 'программы', href: 'programs.html', external: true },
