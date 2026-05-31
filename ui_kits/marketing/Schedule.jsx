@@ -45,7 +45,9 @@ const schedStyles = {
   warn: { fontSize: 12, color: 'var(--om-warning)', display: 'inline-flex', alignItems: 'center', gap: 5 },
 };
 
-const PROGRAMS = [
+// Витрина читает /api/programs (источник правды). Если сервера нет
+// (локальное открытие файла) или БД пуста — рисуется SEED_PROGRAMS.
+const SEED_PROGRAMS = [
   {
     bookingId: 'flagship-offline',
     tag: '4-дневный курс', tagClass: 'om-tag--gold',
@@ -86,8 +88,36 @@ const PROGRAMS = [
   },
 ];
 
+// Каноничная программа из /api/programs → карточка блока «Ближайшие программы».
+function schedFromApi(c) {
+  const num = (c.price == null || c.price === '') ? '' : Number(c.price).toLocaleString('ru-RU') + ' ₸';
+  return {
+    bookingId: c.id,
+    tag: c.tag,
+    tagClass: c.tagClass,
+    title: c.title,
+    dates: c.dates,
+    trainer: c.trainer,
+    format: c.formatLabel || '',
+    price: [c.pricePrefix, num].filter(Boolean).join(' ').trim(),
+    discount: c.priceNote,
+    capacity: c.capacityNote,
+  };
+}
+
 function Schedule() {
   const [filter, setFilter] = React.useState('all');
+  const [programs, setPrograms] = React.useState(SEED_PROGRAMS);
+
+  React.useEffect(() => {
+    let alive = true;
+    fetch('/api/programs')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && j.data && j.data.length) setPrograms(j.data.map(schedFromApi)); })
+      .catch(() => {}); // fallback на SEED_PROGRAMS
+    return () => { alive = false; };
+  }, []);
+
   const filters = [
     { id: 'all', label: 'Все программы' },
     { id: 'flagship', label: 'Вес идеальности' },
@@ -123,7 +153,7 @@ function Schedule() {
         </div>
 
         <div style={schedStyles.list}>
-          {PROGRAMS.map((p, i) => (
+          {programs.map((p, i) => (
             <div key={i} style={schedStyles.card} data-animate="schedule-item">
               <div style={schedStyles.body}>
                 <div style={schedStyles.tagRow}>
@@ -144,7 +174,7 @@ function Schedule() {
                     <i data-lucide="user-round" style={{ width: 14, height: 14 }}></i>{p.trainer}
                   </span>
                   <span style={schedStyles.rowMetaItem}>
-                    <i data-lucide={p.format.includes('Онлайн') ? 'monitor' : 'map-pin'} style={{ width: 14, height: 14 }}></i>
+                    <i data-lucide={(p.format || '').includes('Онлайн') ? 'monitor' : 'map-pin'} style={{ width: 14, height: 14 }}></i>
                     {p.format}
                   </span>
                 </div>
