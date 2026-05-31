@@ -29,6 +29,7 @@ function toCanonical(r) {
     trainer: r.trainer || '',
     capacityNote: r.capacity_note || '',
     featured: !!r.featured,
+    showInHero: !!r.show_in_hero,
     active: r.active !== false,
     sortOrder: r.sort_order || 0,
   };
@@ -81,6 +82,7 @@ export default async function handler(req, res) {
     trainer: b.trainer || '',
     capacityNote: b.capacityNote || '',
     featured: !!b.featured,
+    showInHero: !!b.showInHero,
     active: b.active !== false,
     sortOrder: b.sortOrder == null ? 0 : Number(b.sortOrder),
   };
@@ -91,10 +93,10 @@ export default async function handler(req, res) {
     const ins = await sql`
       INSERT INTO programs
         (id, title, format, format_label, weeks, price, price_prefix, price_note, descr,
-         category, tag, tag_class, includes, dates, trainer, capacity_note, featured, active, sort_order)
+         category, tag, tag_class, includes, dates, trainer, capacity_note, featured, show_in_hero, active, sort_order)
       VALUES
         (${id}, ${v.title}, ${v.format}, ${v.formatLabel}, ${v.weeks}, ${v.price}, ${v.pricePrefix}, ${v.priceNote}, ${v.descr},
-         ${v.category}, ${v.tag}, ${v.tagClass}, ${v.includes}, ${v.dates}, ${v.trainer}, ${v.capacityNote}, ${v.featured}, ${v.active}, ${v.sortOrder})
+         ${v.category}, ${v.tag}, ${v.tagClass}, ${v.includes}, ${v.dates}, ${v.trainer}, ${v.capacityNote}, ${v.featured}, ${v.showInHero}, ${v.active}, ${v.sortOrder})
       RETURNING *`;
     return res.status(200).json({ ok: true, data: toCanonical(ins.rows[0]) });
   }
@@ -107,7 +109,7 @@ export default async function handler(req, res) {
         weeks = ${v.weeks}, price = ${v.price}, price_prefix = ${v.pricePrefix}, price_note = ${v.priceNote},
         descr = ${v.descr}, category = ${v.category}, tag = ${v.tag}, tag_class = ${v.tagClass},
         includes = ${v.includes}, dates = ${v.dates}, trainer = ${v.trainer},
-        capacity_note = ${v.capacityNote}, featured = ${v.featured}, active = ${v.active}, sort_order = ${v.sortOrder}
+        capacity_note = ${v.capacityNote}, featured = ${v.featured}, show_in_hero = ${v.showInHero}, active = ${v.active}, sort_order = ${v.sortOrder}
       WHERE id = ${b.id}
       RETURNING *`;
     if (!upd.rows.length) return res.status(404).json({ ok: false, error: 'Программа не найдена' });

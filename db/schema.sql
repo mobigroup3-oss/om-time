@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS programs (
   price_prefix  TEXT,                                -- «от» (необязательно)
   price_note    TEXT,                                -- «−15 000 ₸ при предоплате»
   capacity_note TEXT,                                -- «осталось 3 места» (свободный текст)
-  featured      BOOLEAN NOT NULL DEFAULT false       -- флагман (крупная карточка)
+  featured      BOOLEAN NOT NULL DEFAULT false,      -- флагман (крупная карточка на /программы)
+  show_in_hero  BOOLEAN NOT NULL DEFAULT false        -- блок «Ближайшее событие» на главной
 );
 
 -- ── Расписание событий ─────────────────────────────────────
@@ -109,3 +110,8 @@ CREATE TABLE IF NOT EXISTS hero_slides (
   sort_order INT NOT NULL DEFAULT 0,
   data       JSONB NOT NULL
 );
+
+-- ── Миграции (выполнять на существующей БД) ────────────────
+-- Добавлено: поле show_in_hero для блока «Ближайшее событие» на главной.
+-- Безопасно запускать повторно (IF NOT EXISTS).
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS show_in_hero BOOLEAN NOT NULL DEFAULT false;

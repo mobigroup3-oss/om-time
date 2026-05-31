@@ -86,7 +86,8 @@ function Hero() {
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(j => {
         if (!alive || !j || !j.ok || !Array.isArray(j.data)) return;
-        const flag = j.data.find(p => p.featured);
+        // showInHero — явная галочка «Ближайшее событие»; featured — обратная совместимость
+        const flag = j.data.find(p => p.showInHero) || j.data.find(p => p.featured);
         if (flag) setFeatured(heroFeaturedEvent(flag));
       })
       .catch(() => {}); // нет сервера/флагмана — остаётся дефолтное событие
@@ -224,7 +225,9 @@ function Hero() {
             </div>
             <div className="om-hero-events-aside">
               <span className="om-hero-events-price">{featured ? featured.price : '15 000₸'}</span>
-              <i data-lucide="arrow-right" style={{ width: 14, height: 14, color: 'var(--om-coral)' }}></i>
+              <span className="om-hero-events-go" aria-hidden="true">
+                <i data-lucide="arrow-up-right" style={{ width: 16, height: 16 }}></i>
+              </span>
             </div>
           </a>
         </div>

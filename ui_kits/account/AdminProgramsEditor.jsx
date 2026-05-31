@@ -52,7 +52,7 @@
   // Канонический shape (= /api/programs). Реальные программы сайта — fallback,
   // когда нет ни сервера, ни кэша (совпадает с db/seed.sql и ProgramsPage).
   const DEFAULT_PROGRAMS = [
-    { id: 'flagship', title: 'Вес идеальности с модификацией фигуры', format: 'offline', formatLabel: 'Офлайн, Алматы', weeks: null, price: 160000, pricePrefix: '', priceNote: '−15 000 ₸ при предоплате за 3–4 дня', descr: 'Флагманская авторская программа. Четыре дня интенсивной работы: нейропластика желудка, психомоделирующее дыхание, карта стройности и якорные техники. После — два месяца поддержки в закрытом чате с психологом.', category: 'flagship', tag: '4-дневный интенсив', tagClass: 'om-tag--gold', includes: ['4 дня по 90–120 минут', '2 месяца сопровождения', 'Материалы и практики'], dates: '4–7 ноября, 17:00', trainer: 'Татьяна Педас', capacityNote: 'осталось 3 места', featured: true, active: true },
+    { id: 'flagship', title: 'Вес идеальности с модификацией фигуры', format: 'offline', formatLabel: 'Офлайн, Алматы', weeks: null, price: 160000, pricePrefix: '', priceNote: '−15 000 ₸ при предоплате за 3–4 дня', descr: 'Флагманская авторская программа. Четыре дня интенсивной работы: нейропластика желудка, психомоделирующее дыхание, карта стройности и якорные техники. После — два месяца поддержки в закрытом чате с психологом.', category: 'flagship', tag: '4-дневный интенсив', tagClass: 'om-tag--gold', includes: ['4 дня по 90–120 минут', '2 месяца сопровождения', 'Материалы и практики'], dates: '4–7 ноября, 17:00', trainer: 'Татьяна Педас', capacityNote: 'осталось 3 места', featured: true, showInHero: true, active: true },
     { id: 'flagship-online', title: 'Вес идеальности ONLINE', format: 'online', formatLabel: 'Онлайн', weeks: null, price: 90000, pricePrefix: '', priceNote: '', descr: 'Та же методика в онлайн-формате. Прямые эфиры, запись сессий, закрытый чат с психологом на два месяца. Подходит для тех, кто не в Алматы.', category: 'online', tag: 'Онлайн-интенсив', tagClass: 'om-tag--lilac', includes: ['4 прямых эфира', 'Доступ к записям', '2 месяца поддержки'], dates: 'старт 12 ноября', trainer: 'Татьяна Педас', capacityNote: '', featured: false, active: true },
     { id: 'club', title: 'Клубный день', format: 'offline', formatLabel: 'Офлайн', weeks: null, price: 12000, pricePrefix: '', priceNote: '', descr: 'Двухчасовая встреча для выпускников программ. Углубление техник, групповая работа, ответы на вопросы. Помогает закрепить результат.', category: 'club', tag: 'Активация', tagClass: 'om-tag--sage', includes: ['2 часа групповой работы', 'Для выпускников', 'Практика техник'], dates: '10, 18, 21, 24 ноября, 19:00', trainer: 'Илья Брежнев', capacityNote: '', featured: false, active: true },
     { id: 'teen', title: 'Подростковый клуб', format: 'offline', formatLabel: 'Офлайн', weeks: null, price: 30000, pricePrefix: '', priceNote: '', descr: 'Мягкая работа с пищевым поведением и самовосприятием для подростков. Игровые элементы, безопасная среда, фокус на уверенности.', category: 'teen', tag: 'Подростки 12–17', tagClass: 'om-tag--coral', includes: ['2 часа на встречу', 'Специальная методика', 'Темы: еда, тело, стресс'], dates: '8 и 22 ноября, 11:00–13:00', trainer: 'Наталья Лоскутникова', capacityNote: '', featured: false, active: true },
@@ -97,7 +97,7 @@
       setTimeout(() => setToast(null), 2200);
     };
 
-    const blank = { title: '', format: 'offline', formatLabel: '', weeks: null, price: 0, pricePrefix: '', priceNote: '', descr: '', category: 'flagship', tag: '', tagClass: '', includes: [], dates: '', trainer: '', capacityNote: '', featured: false, active: true };
+    const blank = { title: '', format: 'offline', formatLabel: '', weeks: null, price: 0, pricePrefix: '', priceNote: '', descr: '', category: 'flagship', tag: '', tagClass: '', includes: [], dates: '', trainer: '', capacityNote: '', featured: false, showInHero: false, active: true };
     const editingItem = editing === 'new' ? blank : items.find(i => i.id === editing);
 
     const filtered = items.filter(p => {
@@ -449,6 +449,16 @@
                 style={{ width: 18, height: 18, accentColor: 'var(--om-ink)' }}
               />
               <span>Флагман (крупная карточка-баннер на странице программ)</span>
+            </label>
+
+            <label style={S.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={!!form.showInHero}
+                onChange={e => set('showInHero', e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: 'var(--om-coral)' }}
+              />
+              <span>Использовать в блоке «Ближайшее событие» на главной странице</span>
             </label>
           </div>
 
