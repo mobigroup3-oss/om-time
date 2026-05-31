@@ -49,7 +49,7 @@ const schedStyles = {
 // (локальное открытие файла) или БД пуста — рисуется SEED_PROGRAMS.
 const SEED_PROGRAMS = [
   {
-    bookingId: 'flagship-offline',
+    bookingId: 'flagship-offline', category: 'flagship',
     tag: '4-дневный курс', tagClass: 'om-tag--gold',
     title: 'Вес идеальности с модификацией фигуры',
     dates: '4–7 ноября, 17:00',
@@ -60,7 +60,7 @@ const SEED_PROGRAMS = [
     capacity: 'осталось 3 места',
   },
   {
-    bookingId: 'club',
+    bookingId: 'club', category: 'club',
     tag: 'Активация программы', tagClass: 'om-tag--sage',
     title: 'Клубный день — 2 часа',
     dates: '10, 18, 21, 24 ноября, 19:00',
@@ -69,7 +69,7 @@ const SEED_PROGRAMS = [
     price: '12 000 ₸',
   },
   {
-    bookingId: 'teen',
+    bookingId: 'teen', category: 'teen',
     tag: 'Для подростков', tagClass: 'om-tag--coral',
     title: 'Подростковый клуб (12–17 лет)',
     dates: '8 и 22 ноября, 11:00–13:00',
@@ -78,7 +78,7 @@ const SEED_PROGRAMS = [
     price: '30 000 ₸',
   },
   {
-    bookingId: 'detox',
+    bookingId: 'detox', category: 'online',
     tag: 'Онлайн', tagClass: 'om-tag--lilac',
     title: 'ONLINE DETOX — 10 дней',
     dates: 'старт 12 ноября',
@@ -88,11 +88,21 @@ const SEED_PROGRAMS = [
   },
 ];
 
+// Категории-фильтры — те же слаги и подписи, что на странице «Программы».
+const SCHED_CATEGORIES = [
+  { id: 'flagship',   label: 'Флагман'       },
+  { id: 'online',     label: 'Онлайн'        },
+  { id: 'club',       label: 'Клубный день'  },
+  { id: 'teen',       label: 'Подростки'     },
+  { id: 'individual', label: 'Индивидуально' },
+];
+
 // Каноничная программа из /api/programs → карточка блока «Ближайшие программы».
 function schedFromApi(c) {
   const num = (c.price == null || c.price === '') ? '' : Number(c.price).toLocaleString('ru-RU') + ' ₸';
   return {
     bookingId: c.id,
+    category: c.category,
     tag: c.tag,
     tagClass: c.tagClass,
     title: c.title,
@@ -118,13 +128,20 @@ function Schedule() {
     return () => { alive = false; };
   }, []);
 
+  // Показываем «Все программы» + только те категории, по которым реально
+  // есть программы (без пустых фильтров на главной).
+  const present = new Set(programs.map(p => p.category));
   const filters = [
     { id: 'all', label: 'Все программы' },
-    { id: 'flagship', label: 'Вес идеальности' },
-    { id: 'group', label: 'Группа' },
-    { id: 'online', label: 'Онлайн' },
-    { id: 'november', label: 'Ноябрь 2025' },
+    ...SCHED_CATEGORIES.filter(c => present.has(c.id)),
   ];
+
+  // Если выбранный фильтр пропал из данных (программу сняли/переключили) —
+  // не оставляем пустой экран, откатываемся на «Все».
+  const activeFilter = filters.some(f => f.id === filter) ? filter : 'all';
+  const visible = activeFilter === 'all'
+    ? programs
+    : programs.filter(p => p.category === activeFilter);
 
   return (
     <section style={schedStyles.band} id="schedule" data-screen-label="Marketing site / Schedule">
@@ -144,7 +161,7 @@ function Schedule() {
             <button
               key={f.id}
               data-animate="schedule-chip"
-              style={{ ...schedStyles.chip, ...(filter === f.id ? schedStyles.chipActive : {}) }}
+              style={{ ...schedStyles.chip, ...(activeFilter === f.id ? schedStyles.chipActive : {}) }}
               onClick={() => setFilter(f.id)}
             >
               {f.label}
@@ -153,7 +170,7 @@ function Schedule() {
         </div>
 
         <div style={schedStyles.list}>
-          {programs.map((p, i) => (
+          {visible.map((p, i) => (
             <div key={i} style={schedStyles.card} data-animate="schedule-item">
               <div style={schedStyles.body}>
                 <div style={schedStyles.tagRow}>
