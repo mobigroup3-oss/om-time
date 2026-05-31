@@ -48,6 +48,10 @@ function AccountPage() {
     if (section === 'schedule')  return <AdminScheduleEditor />;
     if (section === 'carousel')  return <AdminHeroCarousel />;
     if (section === 'programs')  return <AdminProgramsEditor />;
+    if (section === 'team')      return <AdminTeamEditor />;
+    if (section === 'requests')  return <AdminRequestsEditor />;
+    if (section === 'bookings')  return <MyBookingsView />;
+    if (section === 'profile')   return <ProfileView />;
     return <PlaceholderSection id={section} />;
   }
 
