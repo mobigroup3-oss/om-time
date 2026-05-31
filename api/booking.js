@@ -62,9 +62,12 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true, code: record.code });
 }
 
-// Vercel Postgres. Включается, когда задан POSTGRES_URL и установлен @vercel/postgres.
+// Vercel Postgres. Включается, когда задана строка подключения и установлен @vercel/postgres.
 async function persist(r) {
-  if (!process.env.POSTGRES_URL) return;
+  const conn = process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL
+    || process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL_UNPOOLED || '';
+  if (!conn) return;
+  if (!process.env.POSTGRES_URL) process.env.POSTGRES_URL = conn;
   const { sql } = await import('@vercel/postgres');
   await sql`
     INSERT INTO requests

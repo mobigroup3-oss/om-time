@@ -37,10 +37,24 @@ export function requireAdmin(req, res) {
   return true;
 }
 
-// Ленивое подключение к Postgres. null — БД не настроена (нет POSTGRES_URL):
-// функции в этом случае отдают пустые данные, а витрины рисуют встроенный seed.
+// Строка подключения к Postgres. Разные интеграции называют переменную
+// по-разному (Vercel Postgres → POSTGRES_URL, Neon → DATABASE_URL и т.п.).
+export function pgConnString() {
+  return process.env.POSTGRES_URL
+    || process.env.POSTGRES_PRISMA_URL
+    || process.env.DATABASE_URL
+    || process.env.POSTGRES_URL_NON_POOLING
+    || process.env.DATABASE_URL_UNPOOLED
+    || '';
+}
+
+// Ленивое подключение к Postgres. null — БД не настроена: функции отдают пустые
+// данные, а витрины рисуют встроенный seed. @vercel/postgres читает POSTGRES_URL —
+// если интеграция задала только DATABASE_URL, подставляем её туда.
 export async function getSql() {
-  if (!process.env.POSTGRES_URL) return null;
+  const conn = pgConnString();
+  if (!conn) return null;
+  if (!process.env.POSTGRES_URL) process.env.POSTGRES_URL = conn;
   const { sql } = await import('@vercel/postgres');
   return sql;
 }
