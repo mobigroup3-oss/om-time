@@ -27,10 +27,16 @@ function Hero() {
   }
 
   React.useEffect(() => {
-    setSlides(loadSlides());
+    let alive = true;
+    setSlides(loadSlides()); // мгновенно из кэша/дефолта
+    // затем — источник правды с сервера
+    fetch('/api/hero')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && j.data && j.data.length) setSlides(j.data); })
+      .catch(() => {});
     function onUpdate() { setSlides(loadSlides()); }
     window.addEventListener('om-carousel-updated', onUpdate);
-    return () => window.removeEventListener('om-carousel-updated', onUpdate);
+    return () => { alive = false; window.removeEventListener('om-carousel-updated', onUpdate); };
   }, []);
 
   React.useEffect(() => {

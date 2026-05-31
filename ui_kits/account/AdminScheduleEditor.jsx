@@ -103,10 +103,47 @@ function statusMeta(id) {
   return STATUSES.find(s => s.id === id) || STATUSES[0];
 }
 
+/* ── Backend (Vercel + Postgres) с локальным кэшем/fallback ───────────── */
+
+const API = '/api/schedule';
+const SCHEDULE_KEY = 'omtime.schedule.v1';
+const adminToken = () => { try { return sessionStorage.getItem('omtime.admin.token') || ''; } catch (e) { return ''; } };
+const cacheSchedule = (list) => { try { localStorage.setItem(SCHEDULE_KEY, JSON.stringify(list)); } catch (e) {} };
+function apiWrite(method, body, query) {
+  return fetch(API + (query || ''), {
+    method,
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken() },
+    body: body ? JSON.stringify(body) : undefined,
+  }).then(r => r.json()).catch(() => null);
+}
+
+// Витринные поля (tag / tagClass / formatLabel) выводятся из категории и формата —
+// так публичная страница расписания (SchedulePage) выглядит как прежде.
+const TAG_BY = {
+  flagship: { offline: { tag: '4-дневный интенсив', tagClass: 'om-tag--gold' },
+              online:  { tag: 'Онлайн-интенсив',    tagClass: 'om-tag--lilac' } },
+  club:     { tag: 'Клубный день',     tagClass: 'om-tag--sage'  },
+  detox:    { tag: 'Онлайн · 10 дней', tagClass: 'om-tag--lilac' },
+  teen:     { tag: 'Подростки 12–17',  tagClass: 'om-tag--coral' },
+};
+function deriveDisplay(ev) {
+  let tag = '', tagClass = '';
+  const c = TAG_BY[ev.category];
+  if (c) {
+    if (c.offline || c.online) { const f = c[ev.format] || c.offline; tag = f.tag; tagClass = f.tagClass; }
+    else { tag = c.tag; tagClass = c.tagClass; }
+  }
+  const formatLabel = ev.format === 'online' ? 'Онлайн' : ('Офлайн' + (ev.location ? ', ' + ev.location : ''));
+  return { tag, tagClass, formatLabel };
+}
+
 /* ── Editor ───────────────────────────────────────────────────────────── */
 
 function AdminScheduleEditor() {
-  const [events, setEvents]   = React.useState(SEED_EVENTS);
+  const [events, setEvents]   = React.useState(() => {
+    try { const raw = localStorage.getItem(SCHEDULE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    return SEED_EVENTS;
+  });
   const [search, setSearch]   = React.useState('');
   const [fCat, setFCat]       = React.useState('all');
   const [fMonth, setFMonth]   = React.useState('all');
@@ -116,6 +153,16 @@ function AdminScheduleEditor() {
   const [toast, setToast]     = React.useState(null);
 
   const currentYM = ymString(new Date());
+
+  // Первичная загрузка с сервера (источник правды). Нет сервера → кэш / SEED.
+  React.useEffect(() => {
+    let alive = true;
+    fetch(API + '?all=1', { headers: { 'x-admin-token': adminToken() } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && j.data && j.data.length) { setEvents(j.data); cacheSchedule(j.data); } })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // Список месяцев — выводится из самих событий
   const months = React.useMemo(() => {
@@ -170,6 +217,7 @@ function AdminScheduleEditor() {
       trainer: '', location: '',
       price: '', priceNote: '',
       capacity: '', capacityTotal: '',
+      featured: false, isNew: false,
       status: 'draft',
     });
   }
@@ -183,14 +231,19 @@ function AdminScheduleEditor() {
       monthLabel: monthIdToLabel(data.month),
       capacity:      data.capacity      === '' ? null : Number(data.capacity),
       capacityTotal: data.capacityTotal === '' ? null : Number(data.capacityTotal),
+      featured: !!data.featured,
+      isNew: !!data.isNew,
+      ...deriveDisplay(data), // tag / tagClass / formatLabel для витрины
     };
 
     if (data.id === 'new') {
       normalized.id = 'evt-' + Date.now();
-      setEvents(prev => [...prev, normalized]);
+      setEvents(prev => { const n = [...prev, normalized]; cacheSchedule(n); return n; });
+      apiWrite('POST', normalized);
       showToast('Событие добавлено');
     } else {
-      setEvents(prev => prev.map(e => e.id === data.id ? normalized : e));
+      setEvents(prev => { const n = prev.map(e => e.id === data.id ? normalized : e); cacheSchedule(n); return n; });
+      apiWrite('PUT', normalized);
       showToast('Изменения сохранены');
     }
     setEditing(null);
@@ -200,14 +253,16 @@ function AdminScheduleEditor() {
     const ev = events.find(e => e.id === id);
     if (!ev) return;
     if (!window.confirm(`Удалить событие\n«${ev.title}» (${ev.dates})?`)) return;
-    setEvents(prev => prev.filter(e => e.id !== id));
+    setEvents(prev => { const n = prev.filter(e => e.id !== id); cacheSchedule(n); return n; });
+    apiWrite('DELETE', null, '?id=' + encodeURIComponent(id));
     showToast('Событие удалено');
   }
 
   function deleteMonth(monthId) {
     const list = events.filter(e => e.month === monthId);
     if (!window.confirm(`Удалить ${list.length} ${pluralRu(list.length, 'событие', 'события', 'событий')} в месяце «${monthIdToLabel(monthId)}»?`)) return;
-    setEvents(prev => prev.filter(e => e.month !== monthId));
+    list.forEach(e => apiWrite('DELETE', null, '?id=' + encodeURIComponent(e.id)));
+    setEvents(prev => { const n = prev.filter(e => e.month !== monthId); cacheSchedule(n); return n; });
     if (fMonth === monthId) setFMonth('all');
     showToast('Месяц очищен');
   }
@@ -239,6 +294,7 @@ function AdminScheduleEditor() {
       trainer: '', location: '',
       price: '', priceNote: '',
       capacity: '', capacityTotal: '',
+      featured: false, isNew: false,
       status: 'draft',
     });
   }
@@ -648,6 +704,25 @@ function EventEditorModal({ initial, existingMonths, onSave, onClose }) {
               </div>
               <span className="om-form-help">
                 Только «опубликовано» отображается на публичной странице расписания.
+              </span>
+            </div>
+
+            <div className="om-form-field om-form-field--full">
+              <label className="om-form-label">Оформление на витрине</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!draft.featured} onChange={e => set('featured', e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: 'var(--om-ink)' }} />
+                  <span>Выделить крупной карточкой-баннером</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!draft.isNew} onChange={e => set('isNew', e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: 'var(--om-ink)' }} />
+                  <span>Бейдж «новое»</span>
+                </label>
+              </div>
+              <span className="om-form-help">
+                Бейдж формата и цвет тега подбираются автоматически по категории и формату.
               </span>
             </div>
           </div>

@@ -1,6 +1,7 @@
 /* SchedulePage.jsx — полное расписание OM Time */
 
-const SCHEDULE_EVENTS = [
+// Данные тянутся из /api/schedule. Нет сервера / пустая БД → SEED_SCHEDULE.
+const SEED_SCHEDULE = [
   // ── Ноябрь 2025 ──────────────────────────────────────────────────────────
   {
     id: 'nov-flagship-offline',
@@ -285,7 +286,7 @@ const SCHEDULE_EVENTS = [
   },
 ];
 
-const MONTHS_ORDER = [...new Set(SCHEDULE_EVENTS.map(e => e.month))].sort();
+function monthsOrderOf(events) { return [...new Set(events.map(e => e.month))].sort(); }
 
 const FILTERS_FORMAT = [
   { id: 'all',     label: 'Все форматы' },
@@ -301,25 +302,23 @@ const FILTERS_CAT = [
   { id: 'teen',     label: 'Подростки'       },
 ];
 
-function getSmartDefaultMonth() {
+function getSmartDefaultMonth(events) {
   var today = new Date();
   var currentYM = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
-  return MONTHS_ORDER.find(function(m) { return m >= currentYM; }) || 'all';
+  return monthsOrderOf(events).find(function(m) { return m >= currentYM; }) || 'all';
 }
 
-function buildFiltersMonth() {
+function buildFiltersMonth(events) {
   var today = new Date();
   var currentYM = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
   var list = [{ id: 'all', label: 'Все месяцы', count: null, isPast: false, isCurrent: false }];
-  MONTHS_ORDER.forEach(function(m) {
-    var label = (SCHEDULE_EVENTS.find(function(e) { return e.month === m; }) || {}).monthLabel || m;
-    var count = SCHEDULE_EVENTS.filter(function(e) { return e.month === m; }).length;
+  monthsOrderOf(events).forEach(function(m) {
+    var label = (events.find(function(e) { return e.month === m; }) || {}).monthLabel || m;
+    var count = events.filter(function(e) { return e.month === m; }).length;
     list.push({ id: m, label: label, count: count, isPast: m < currentYM, isCurrent: m === currentYM });
   });
   return list;
 }
-
-const FILTERS_MONTH = buildFiltersMonth();
 
 /* ── styles ──────────────────────────────────────────────────────────────── */
 
@@ -634,9 +633,21 @@ function SchedEventCard({ event: ev }) {
 function SchedulePage() {
   const [filterFormat, setFilterFormat] = React.useState('all');
   const [filterCat,    setFilterCat]    = React.useState('all');
-  const [filterMonth,  setFilterMonth]  = React.useState(getSmartDefaultMonth);
+  const [filterMonth,  setFilterMonth]  = React.useState(() => getSmartDefaultMonth(SEED_SCHEDULE));
+  const [events,       setEvents]       = React.useState(SEED_SCHEDULE);
 
-  const defaultMonth = React.useMemo(getSmartDefaultMonth, []);
+  React.useEffect(() => {
+    let alive = true;
+    fetch('/api/schedule')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && j.data && j.data.length) setEvents(j.data); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const MONTHS_ORDER = React.useMemo(() => monthsOrderOf(events), [events]);
+  const FILTERS_MONTH = React.useMemo(() => buildFiltersMonth(events), [events]);
+  const defaultMonth = React.useMemo(() => getSmartDefaultMonth(events), [events]);
   const hasActiveFilters = filterFormat !== 'all' || filterCat !== 'all' || filterMonth !== defaultMonth;
 
   function clearAll() {
@@ -645,7 +656,7 @@ function SchedulePage() {
     setFilterMonth(defaultMonth);
   }
 
-  const filtered = SCHEDULE_EVENTS.filter(ev => {
+  const filtered = events.filter(ev => {
     if (filterFormat !== 'all' && ev.format   !== filterFormat) return false;
     if (filterCat    !== 'all' && ev.category !== filterCat)    return false;
     if (filterMonth  !== 'all' && ev.month    !== filterMonth)  return false;
@@ -655,7 +666,7 @@ function SchedulePage() {
   const activeMonths = MONTHS_ORDER.filter(m => filtered.some(ev => ev.month === m));
   const today = new Date();
   const currentYM = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
-  const upcomingEvents = SCHEDULE_EVENTS.filter(e => e.month >= currentYM);
+  const upcomingEvents = events.filter(e => e.month >= currentYM);
   const totalEvents  = upcomingEvents.length;
   const totalOnline  = upcomingEvents.filter(e => e.format === 'online').length;
   const totalMonths  = MONTHS_ORDER.filter(m => m >= currentYM).length;
@@ -779,7 +790,7 @@ function SchedulePage() {
             <div style={sp.toolbarFoot}>
               <span style={sp.resultsText}>
                 {hasActiveFilters
-                  ? `Показано ${filtered.length} из ${SCHEDULE_EVENTS.length} событий`
+                  ? `Показано ${filtered.length} из ${events.length} событий`
                   : `${filtered.length} ${pluralRu(filtered.length, 'событие', 'события', 'событий')} · выберите месяц`}
               </span>
               {hasActiveFilters && (

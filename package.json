@@ -1,0 +1,8 @@
+{
+  "name": "om-time",
+  "private": true,
+  "description": "OM-Time — статический сайт (React+Babel из CDN) + serverless-функции api/ на Vercel. Build Command пустой; зависимость нужна только функциям.",
+  "dependencies": {
+    "@vercel/postgres": "^0.10.0"
+  }
+}

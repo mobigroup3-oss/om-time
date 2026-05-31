@@ -20,9 +20,19 @@ function carouselRead() {
   catch (e) { return []; }
 }
 
+function heroAdminToken() { try { return sessionStorage.getItem('omtime.admin.token') || ''; } catch (e) { return ''; } }
+
 function carouselWrite(list) {
   localStorage.setItem(CAROUSEL_KEY, JSON.stringify(list));
   window.dispatchEvent(new CustomEvent('om-carousel-updated'));
+  // Источник правды — сервер. Ошибки/отсутствие сервера не мешают локальной работе.
+  try {
+    fetch('/api/hero', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': heroAdminToken() },
+      body: JSON.stringify({ slides: list }),
+    }).catch(function () {});
+  } catch (e) {}
 }
 
 /* ── SlideRow ─────────────────────────────────────────────────── */
@@ -190,12 +200,21 @@ function AdminHeroCarousel() {
 
   React.useEffect(function() {
     var stored = carouselRead();
-    if (stored.length === 0) {
-      carouselWrite(DEFAULT_SLIDES);
-      setImages(DEFAULT_SLIDES);
-    } else {
-      setImages(stored);
-    }
+    if (stored.length) setImages(stored); // мгновенно из кэша
+    // источник правды — сервер
+    fetch('/api/hero')
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(j) {
+        if (j && j.ok && j.data && j.data.length) {
+          setImages(j.data);
+          localStorage.setItem(CAROUSEL_KEY, JSON.stringify(j.data));
+        } else if (stored.length === 0) {
+          setImages(DEFAULT_SLIDES);
+        }
+      })
+      .catch(function() {
+        if (stored.length === 0) { carouselWrite(DEFAULT_SLIDES); setImages(DEFAULT_SLIDES); }
+      });
   }, []);
 
   function persist(newList) {

@@ -49,15 +49,29 @@ CREATE TABLE IF NOT EXISTS team_members (
 -- ── Программы ──────────────────────────────────────────────
 -- localStorage('omtime.programs.v1') (AdminProgramsEditor).
 -- Поле desc в JS → колонка descr (desc — зарезервированное слово SQL).
+-- Колонки category…featured добавлены под витрину ProgramsPage.jsx
+-- (публичная страница рисует больше полей, чем хранил черновой редактор).
 CREATE TABLE IF NOT EXISTS programs (
-  id         TEXT PRIMARY KEY,                       -- p1, p2… или p{timestamp}
-  title      TEXT NOT NULL,
-  format     TEXT,                                   -- offline | online | hybrid
-  weeks      INT,
-  price      INT,                                    -- в тенге
-  descr      TEXT,
-  active     BOOLEAN NOT NULL DEFAULT true,
-  sort_order INT NOT NULL DEFAULT 0
+  id            TEXT PRIMARY KEY,                    -- p1, p2… или p{timestamp}
+  title         TEXT NOT NULL,
+  format        TEXT,                                -- offline | online | hybrid (enum редактора)
+  weeks         INT,
+  price         INT,                                 -- в тенге (число; строку собирает витрина)
+  descr         TEXT,
+  active        BOOLEAN NOT NULL DEFAULT true,
+  sort_order    INT NOT NULL DEFAULT 0,
+  -- поля витрины:
+  category      TEXT,                                -- flagship | online | club | teen | individual
+  tag           TEXT,                                -- бейдж («4-дневный интенсив»)
+  tag_class     TEXT,                                -- om-tag--gold | --lilac | --sage | --coral | ''
+  includes      TEXT[] NOT NULL DEFAULT '{}',        -- список «что входит»
+  dates         TEXT,                                -- свободный текст («4–7 ноября, 17:00»)
+  trainer       TEXT,
+  format_label  TEXT,                                -- витринный текст формата («Офлайн, Алматы»)
+  price_prefix  TEXT,                                -- «от» (необязательно)
+  price_note    TEXT,                                -- «−15 000 ₸ при предоплате»
+  capacity_note TEXT,                                -- «осталось 3 места» (свободный текст)
+  featured      BOOLEAN NOT NULL DEFAULT false       -- флагман (крупная карточка)
 );
 
 -- ── Расписание событий ─────────────────────────────────────
@@ -74,9 +88,17 @@ CREATE TABLE IF NOT EXISTS schedule_events (
   duration       TEXT,
   trainer        TEXT,
   location       TEXT,
+  price          TEXT,                               -- «160 000 ₸» (свободный текст)
+  price_note     TEXT,                               -- «−15 000 ₸ при предоплате»
   capacity       INT,                                -- свободно мест (null = без лимита)
   capacity_total INT,                                -- всего мест
-  status         TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft'))
+  status         TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft')),
+  -- поля витрины SchedulePage:
+  tag            TEXT,                               -- бейдж («4-дневный интенсив»)
+  tag_class      TEXT,                               -- om-tag--gold | --lilac | --sage | --coral
+  format_label   TEXT,                               -- витринный текст формата («Офлайн, Алматы»)
+  featured       BOOLEAN NOT NULL DEFAULT false,     -- крупная карточка-баннер
+  is_new         BOOLEAN NOT NULL DEFAULT false      -- бейдж «новое»
 );
 
 -- ── Слайды Hero-карусели ───────────────────────────────────

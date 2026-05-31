@@ -1,6 +1,8 @@
-/* ProgramsPage.jsx — каталог программ OM Time */
+/* ProgramsPage.jsx — каталог программ OM Time.
+   Данные тянутся из /api/programs (источник правды — БД). Если запрос не удался
+   (открытие файла локально без сервера) или БД пуста — рисуется SEED_PROGRAMS. */
 
-const PROGRAMS = [
+const SEED_PROGRAMS = [
   {
     id: 'flagship',
     category: 'flagship',
@@ -609,16 +611,48 @@ function ProgFaqItem({ item, isOpen, onToggle }) {
   );
 }
 
+// Канонический объект из /api/programs → render-форма этой страницы.
+function progFromApi(c) {
+  const num = (c.price == null || c.price === '') ? '' : Number(c.price).toLocaleString('ru-RU') + ' ₸';
+  const price = [c.pricePrefix, num].filter(Boolean).join(' ').trim();
+  return {
+    id: c.id,
+    category: c.category,
+    tag: c.tag,
+    tagClass: c.tagClass,
+    title: c.title,
+    description: c.descr,
+    includes: c.includes || [],
+    dates: c.dates,
+    trainer: c.trainer,
+    format: c.formatLabel,
+    price: price,
+    priceNote: c.priceNote,
+    capacity: c.capacityNote,
+    featured: c.featured,
+  };
+}
+
 function ProgramsPage() {
   const [filter, setFilter] = React.useState('all');
   const [openFaq, setOpenFaq] = React.useState(null);
+  const [programs, setPrograms] = React.useState(SEED_PROGRAMS);
+
+  React.useEffect(() => {
+    let alive = true;
+    fetch('/api/programs')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && j.data && j.data.length) setPrograms(j.data.map(progFromApi)); })
+      .catch(() => {}); // fallback на SEED_PROGRAMS
+    return () => { alive = false; };
+  }, []);
 
   const showFeaturedBanner = filter === 'all';
   const gridPrograms = filter === 'all'
-    ? PROGRAMS.filter(p => !p.featured)
-    : PROGRAMS.filter(p => p.category === filter);
+    ? programs.filter(p => !p.featured)
+    : programs.filter(p => p.category === filter);
 
-  const featuredProgram = PROGRAMS.find(p => p.featured);
+  const featuredProgram = programs.find(p => p.featured);
 
   React.useEffect(() => {
     if (window.lucide) window.lucide.createIcons();
@@ -632,7 +666,7 @@ function ProgramsPage() {
         <div style={pgStyles.heroInner} data-animate="prog-hero">
           <div style={pgStyles.heroCount}>
             <span style={pgStyles.heroCountDot}></span>
-            каталог · {PROGRAMS.length} программ
+            каталог · {programs.length} программ
           </div>
           <h1 style={pgStyles.heroH1}>
             Программы<br />

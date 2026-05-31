@@ -7,7 +7,16 @@
   const { useState, useEffect } = React;
   const LucideIcon = window.LucideIcon;
 
-  const REQ_KEY = 'omtime.requests.v1';
+  const REQ_KEY = 'omtime.requests.v1'; // кэш для аналитики / fallback без сервера
+  const API = '/api/requests';
+  const adminToken = () => { try { return sessionStorage.getItem('omtime.admin.token') || ''; } catch (e) { return ''; } };
+  function apiWrite(method, body, query) {
+    return fetch(API + (query || ''), {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken() },
+      body: body ? JSON.stringify(body) : undefined,
+    }).then(r => r.json()).catch(() => null);
+  }
 
   // Программы синхронны с публичной booking.html (BOOKING_PROGRAMS).
   const PROGRAMS = [
@@ -61,6 +70,16 @@
       } catch (e) {}
       return DEFAULT_REQUESTS;
     });
+    // Загрузка с сервера (источник правды). Пустой ответ — реальное «заявок нет».
+    useEffect(() => {
+      let alive = true;
+      fetch(API, { headers: { 'x-admin-token': adminToken() } })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(j => { if (alive && j && j.ok && Array.isArray(j.data)) setItems(j.data); })
+        .catch(() => {}); // нет сервера → остаёмся на кэше / DEFAULT
+      return () => { alive = false; };
+    }, []);
+    // Кэш в localStorage — отсюда же аналитика берёт число новых заявок.
     useEffect(() => {
       try { localStorage.setItem(REQ_KEY, JSON.stringify(items)); } catch (e) {}
     }, [items]);
@@ -114,10 +133,16 @@
 
     const handleSave = (data) => {
       if (editing === 'new') {
-        setItems([{ ...data, id: 'r' + Date.now() }, ...items]);
+        const tmp = { ...data, id: 'r' + Date.now() };
+        setItems([tmp, ...items]);
+        apiWrite('POST', data).then(j => {
+          if (j && j.ok && j.data) setItems(cur => cur.map(i => (i.id === tmp.id ? j.data : i)));
+        });
         showToast('Заявка добавлена');
       } else {
-        setItems(items.map(i => (i.id === editing ? { ...i, ...data } : i)));
+        const updated = { ...items.find(i => i.id === editing), ...data, id: editing };
+        setItems(items.map(i => (i.id === editing ? updated : i)));
+        apiWrite('PUT', updated);
         showToast('Изменения сохранены');
       }
       setEditing(null);
@@ -125,6 +150,7 @@
 
     const handleDelete = (id) => {
       setItems(items.filter(i => i.id !== id));
+      apiWrite('DELETE', null, '?id=' + encodeURIComponent(id));
       setEditing(null);
       showToast('Заявка удалена');
     };

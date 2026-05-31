@@ -15,12 +15,101 @@
   <link rel="stylesheet" href="../marketing/page.css">
   <link rel="stylesheet" href="account.css">
 
+  <style>
+    /* Экран входа администратора (минимальная защита write-операций) */
+    .om-gate {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--om-canvas, #fbf8f2); padding: 24px;
+    }
+    .om-gate-card {
+      width: 100%; max-width: 380px;
+      background: var(--om-canvas-white, #fff);
+      border: 1px solid var(--om-hairline, #e7e1d6);
+      border-radius: var(--om-radius-lg, 18px);
+      box-shadow: var(--om-shadow-card, 0 12px 40px rgba(27,24,64,0.08));
+      padding: 32px 28px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .om-gate-brand { font-family: var(--om-font-mono, monospace); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--om-muted, #8a8275); }
+    .om-gate-title { margin: 0; font-size: 21px; font-weight: 500; color: var(--om-ink, #1b1840); line-height: 1.25; }
+    .om-gate-sub { margin: 0; font-size: 13px; color: var(--om-muted, #8a8275); line-height: 1.5; }
+    .om-gate-input {
+      font-family: inherit; font-size: 15px; padding: 12px 14px;
+      border: 1px solid var(--om-hairline, #e7e1d6); border-radius: var(--om-radius-sm, 10px);
+      background: var(--om-canvas, #fbf8f2); color: var(--om-ink, #1b1840); outline: none;
+    }
+    .om-gate-input:focus { border-color: var(--om-ink, #1b1840); }
+    .om-gate-btn {
+      font-family: inherit; font-size: 15px; font-weight: 500; cursor: pointer;
+      padding: 12px 14px; border: none; border-radius: var(--om-radius-sm, 10px);
+      background: var(--om-ink, #1b1840); color: #fff;
+    }
+    .om-gate-error { font-size: 13px; color: var(--om-coral, #e0654f); }
+    .om-gate-hint { margin: 4px 0 0; font-size: 11px; color: var(--om-faint, #b4ad9e); line-height: 1.5; }
+  </style>
+
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
+  <!-- Экран входа администратора. Пароль = ADMIN_TOKEN на сервере; шлётся в
+       заголовке x-admin-token при изменениях. Минимальная защита (не полноценная
+       пользовательская авторизация — см. DEPLOY.md). -->
+  <div id="om-gate" class="om-gate">
+    <form id="om-gate-form" class="om-gate-card">
+      <div class="om-gate-brand">OM&nbsp;Time</div>
+      <h1 class="om-gate-title">Вход в кабинет администратора</h1>
+      <p class="om-gate-sub">Введите пароль администратора — он защищает изменения программ, команды, расписания и карусели на сайте.</p>
+      <input id="om-gate-input" class="om-gate-input" type="password" autocomplete="current-password" placeholder="Пароль администратора" />
+      <div id="om-gate-error" class="om-gate-error" hidden></div>
+      <button type="submit" class="om-gate-btn">Войти</button>
+      <p class="om-gate-hint">Пароль задаётся переменной окружения <code>ADMIN_TOKEN</code> на сервере. Без сервера (локальный просмотр) вход открыт.</p>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      var KEY = 'omtime.admin.token';
+      var gate  = document.getElementById('om-gate');
+      var form  = document.getElementById('om-gate-form');
+      var input = document.getElementById('om-gate-input');
+      var errBox = document.getElementById('om-gate-error');
+
+      function hide() { gate.style.display = 'none'; }
+      function showError(msg) { errBox.textContent = msg; errBox.hidden = false; }
+      function getToken() { try { return sessionStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+      function setToken(t) { try { sessionStorage.setItem(KEY, t); } catch (e) {} }
+      function clearToken() { try { sessionStorage.removeItem(KEY); } catch (e) {} }
+
+      // Проверка токена. /api/requests — единственный GET, требующий admin:
+      // 401 → неверный пароль; 200 → ок; 503/сеть → сервер не настроен/нет сервера (пускаем).
+      function verify(t) {
+        return fetch('/api/requests', { headers: { 'x-admin-token': t } })
+          .then(function (r) { return r.status === 401 ? 'bad' : 'ok'; })
+          .catch(function () { return 'offline'; });
+      }
+
+      // Уже авторизован в этой сессии — тихо пропускаем.
+      if (getToken()) { hide(); }
+      else { input.focus(); }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var t = input.value.trim();
+        if (!t) { showError('Введите пароль'); return; }
+        errBox.hidden = true;
+        setToken(t);
+        verify(t).then(function (res) {
+          if (res === 'bad') { clearToken(); showError('Неверный пароль'); input.select(); }
+          else { hide(); } // ok / offline
+        });
+      });
+    })();
+  </script>
+
   <div id="root"></div>
 
   <script type="text/babel" src="AccountPage.jsx"></script>

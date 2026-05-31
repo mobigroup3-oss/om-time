@@ -1311,10 +1311,46 @@ function BookingPage() {
     return Object.keys(e).length === 0;
   }
 
-  function handleSubmit(ev) {
+  // Копия записи в личный кабинет («Мои записи», localStorage в этом браузере).
+  function saveMyBooking(code) {
+    try {
+      const raw = localStorage.getItem('omtime.bookings.v1');
+      const list = raw ? JSON.parse(raw) : [];
+      const tone = selectedProgram ? (String(selectedProgram.tagClass || '').replace('om-tag--', '') || 'lilac') : 'lilac';
+      list.unshift({
+        id: code,
+        title: selectedProgram ? selectedProgram.title : 'Запись',
+        tone: tone,
+        format: form.format || (selectedProgram ? selectedProgram.format : ''),
+        date: selectedEvent ? selectedEvent.dateLabel : '',
+        time: selectedEvent ? selectedEvent.time : (selectedProgram ? selectedProgram.duration : ''),
+        trainer: selectedEvent ? selectedEvent.trainer : '',
+        cancelled: false,
+      });
+      localStorage.setItem('omtime.bookings.v1', JSON.stringify(list));
+    } catch (e) {}
+  }
+
+  async function handleSubmit(ev) {
     ev.preventDefault();
     if (!validate()) return;
-    const code = 'OM-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    // Локальный код — fallback, если сервер недоступен (открытый файл).
+    let code = 'OM-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    try {
+      const res = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, programId, eventId }),
+      });
+      const data = await res.json();
+      if (data && data.ok && data.code) {
+        code = data.code;
+      } else if (data && data.errors) {
+        setErrors(data.errors);
+        return;
+      }
+    } catch (e) { /* нет сервера — используем локальный код */ }
+    saveMyBooking(code);
     setBookingCode(code);
     setSubmitted(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });

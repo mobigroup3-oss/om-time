@@ -1,6 +1,7 @@
 /* TeamPage.jsx — страница команды OM Time */
 
-const TEAM = [
+// Данные тянутся из /api/team. Нет сервера / пустая БД → SEED_TEAM (см. ниже).
+const SEED_TEAM = [
   {
     id: 'tatiana-pedas',
     name: 'Татьяна Педас',
@@ -760,14 +761,60 @@ function ValueCard({ value: v }) {
   );
 }
 
+// tone → цвета круглого аватара (как TONE_AVATAR в AdminTeamEditor).
+const TEAM_TONE_AVATAR = {
+  gold:  { avatarBg: 'var(--om-gold-soft)', avatarColor: 'var(--om-on-gold)' },
+  coral: { avatarBg: 'var(--om-coral)',     avatarColor: '#fff' },
+  sage:  { avatarBg: 'var(--om-sage)',      avatarColor: 'var(--om-sage-deep)' },
+  lilac: { avatarBg: 'var(--om-lilac)',     avatarColor: 'var(--om-indigo-deep)' },
+};
+
+function teamInitials(name) {
+  return String(name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+}
+
+// Канонический объект из /api/team → render-форма этой страницы.
+function teamFromApi(c) {
+  const av = TEAM_TONE_AVATAR[c.tone] || TEAM_TONE_AVATAR.lilac;
+  return {
+    id: c.id,
+    name: c.name,
+    filterRoles: c.roleCat ? [c.roleCat] : [],
+    roleLabel: c.roleLabel,
+    initials: teamInitials(c.name),
+    tag: c.tag,
+    tagClass: 'om-tag--' + (c.tone || 'lilac'),
+    spec: c.spec || [],
+    bio: c.bio,
+    credentials: c.credentials || [],
+    years: c.years,
+    yearsLabel: c.yearsLabel,
+    sessions: c.sessions,
+    sessionsLabel: c.sessionsLabel,
+    avatarBg: av.avatarBg,
+    avatarColor: av.avatarColor,
+    featured: c.featured,
+  };
+}
+
 function TeamPage() {
   const [filter, setFilter] = React.useState('all');
+  const [team, setTeam] = React.useState(SEED_TEAM);
 
-  const founder = TEAM.find(m => m.featured);
+  React.useEffect(() => {
+    let alive = true;
+    fetch('/api/team')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && j.data && j.data.length) setTeam(j.data.map(teamFromApi)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const founder = team.find(m => m.featured);
   const showFeatured = filter === 'all' || filter === 'psychologist';
   const gridMembers = filter === 'all'
-    ? TEAM.filter(m => !m.featured)
-    : TEAM.filter(m => !m.featured && m.filterRoles.includes(filter));
+    ? team.filter(m => !m.featured)
+    : team.filter(m => !m.featured && m.filterRoles.includes(filter));
 
   React.useEffect(() => {
     if (window.lucide) window.lucide.createIcons();
@@ -781,7 +828,7 @@ function TeamPage() {
         <div style={tm.heroInner} data-animate="team-hero">
           <div style={tm.heroEyebrow}>
             <span style={tm.heroEyebrowLine} />
-            команда · {TEAM.length} специалистов
+            команда · {team.length} специалистов
           </div>
           <h1 style={tm.heroH1}>
             Команда<br />OM&nbsp;Time

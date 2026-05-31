@@ -8,7 +8,17 @@
   const { useState, useEffect } = React;
   const LucideIcon = window.LucideIcon;
 
-  const TEAM_KEY = 'omtime.team.v1';
+  const TEAM_KEY = 'omtime.team.v1'; // локальный кэш / fallback без сервера
+  const API = '/api/team';
+  const adminToken = () => { try { return sessionStorage.getItem('omtime.admin.token') || ''; } catch (e) { return ''; } };
+  const cache = (list) => { try { localStorage.setItem(TEAM_KEY, JSON.stringify(list)); } catch (e) {} };
+  function apiWrite(method, body, query) {
+    return fetch(API + (query || ''), {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken() },
+      body: body ? JSON.stringify(body) : undefined,
+    }).then(r => r.json()).catch(() => null);
+  }
 
   // Категория специалиста — для фильтра, как на публичной странице команды.
   // tone — вариант om-tag-mini / цвет аватара.
@@ -59,9 +69,15 @@
       return DEFAULT_TEAM;
     });
 
+    // Первичная загрузка с сервера (источник правды). Нет сервера → остаёмся на кэше.
     useEffect(() => {
-      try { localStorage.setItem(TEAM_KEY, JSON.stringify(items)); } catch (e) {}
-    }, [items]);
+      let alive = true;
+      fetch(API + '?all=1', { headers: { 'x-admin-token': adminToken() } })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(j => { if (alive && j && j.ok && j.data && j.data.length) { setItems(j.data); cache(j.data); } })
+        .catch(() => {});
+      return () => { alive = false; };
+    }, []);
 
     return [items, setItems];
   }
@@ -109,31 +125,46 @@
     });
 
     const handleSave = (data) => {
-      // Только один «Основатель» (featured) — снимаем флаг с остальных.
-      const applyFeatured = (list) =>
-        data.featured ? list.map(i => ({ ...i, featured: i.id === data.id ? i.featured : false })) : list;
+      // Только один «Основатель» (featured) — снимаем флаг с остальных и на сервере.
+      const unsetOthers = (excludeId) => {
+        items.filter(i => i.featured && i.id !== excludeId).forEach(i => apiWrite('PUT', { ...i, featured: false }));
+      };
 
       if (editing === 'new') {
         const created = { ...data, id: 't' + Date.now() };
-        setItems(applyFeatured([...items, created]).map(i => (i.id === created.id ? created : i)));
+        let next = [...items, created];
+        if (data.featured) { next = next.map(i => (i.id === created.id ? i : { ...i, featured: false })); unsetOthers(created.id); }
+        setItems(next); cache(next);
+        apiWrite('POST', data).then(j => {
+          if (j && j.ok && j.data) setItems(cur => { const n = cur.map(i => (i.id === created.id ? j.data : i)); cache(n); return n; });
+        });
         showToast('Специалист добавлен');
       } else {
-        let next = items.map(i => (i.id === editing ? { ...i, ...data } : i));
-        next = applyFeatured(next);
-        setItems(next);
+        const updated = { ...items.find(i => i.id === editing), ...data, id: editing };
+        let next = items.map(i => (i.id === editing ? updated : i));
+        if (data.featured) { next = next.map(i => (i.id === editing ? i : { ...i, featured: false })); unsetOthers(editing); }
+        setItems(next); cache(next);
+        apiWrite('PUT', updated);
         showToast('Изменения сохранены');
       }
       setEditing(null);
     };
 
     const handleDelete = (id) => {
-      setItems(items.filter(i => i.id !== id));
+      const next = items.filter(i => i.id !== id);
+      setItems(next); cache(next);
+      apiWrite('DELETE', null, '?id=' + encodeURIComponent(id));
       setEditing(null);
       showToast('Специалист удалён');
     };
 
     const toggleActive = (id) => {
-      setItems(items.map(i => (i.id === id ? { ...i, active: !i.active } : i)));
+      const tgt = items.find(i => i.id === id);
+      if (!tgt) return;
+      const updated = { ...tgt, active: !tgt.active };
+      const next = items.map(i => (i.id === id ? updated : i));
+      setItems(next); cache(next);
+      apiWrite('PUT', updated);
     };
 
     return (
