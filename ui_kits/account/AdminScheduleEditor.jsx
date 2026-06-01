@@ -106,16 +106,21 @@ function statusMeta(id) {
 /* ── Backend (Vercel + Postgres) с локальным кэшем/fallback ───────────── */
 
 const API = '/api/schedule';
+const MONTHS_API = '/api/schedule-months';
 const SCHEDULE_KEY = 'omtime.schedule.v1';
+const MONTHS_KEY = 'omtime.schedule.months.v1';
 const adminToken = () => { try { return sessionStorage.getItem('omtime.admin.token') || ''; } catch (e) { return ''; } };
 const cacheSchedule = (list) => { try { localStorage.setItem(SCHEDULE_KEY, JSON.stringify(list)); } catch (e) {} };
-function apiWrite(method, body, query) {
-  return fetch(API + (query || ''), {
+const cacheMonths = (list) => { try { localStorage.setItem(MONTHS_KEY, JSON.stringify(list)); } catch (e) {} };
+function apiSend(url, method, body, query) {
+  return fetch(url + (query || ''), {
     method,
     headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken() },
     body: body ? JSON.stringify(body) : undefined,
   }).then(r => r.json()).catch(() => null);
 }
+const apiWrite      = (method, body, query) => apiSend(API, method, body, query);
+const apiWriteMonth = (method, body, query) => apiSend(MONTHS_API, method, body, query);
 
 // Витринные поля (tag / tagClass / formatLabel) выводятся из категории и формата —
 // так публичная страница расписания (SchedulePage) выглядит как прежде.
@@ -144,6 +149,12 @@ function AdminScheduleEditor() {
     try { const raw = localStorage.getItem(SCHEDULE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
     return SEED_EVENTS;
   });
+  // Пустые месяцы — хранятся отдельно от событий, чтобы месяц мог
+  // существовать в расписании ещё до того, как в него добавлено событие.
+  const [extraMonths, setExtraMonths] = React.useState(() => {
+    try { const raw = localStorage.getItem(MONTHS_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    return [];
+  });
   const [search, setSearch]   = React.useState('');
   const [fCat, setFCat]       = React.useState('all');
   const [fMonth, setFMonth]   = React.useState('all');
@@ -161,19 +172,25 @@ function AdminScheduleEditor() {
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { if (alive && j && j.ok && j.data && j.data.length) { setEvents(j.data); cacheSchedule(j.data); } })
       .catch(() => {});
+    // Пустые месяцы — отдельная таблица на сервере (источник правды).
+    fetch(MONTHS_API, { headers: { 'x-admin-token': adminToken() } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { if (alive && j && j.ok && Array.isArray(j.data)) { setExtraMonths(j.data); cacheMonths(j.data); } })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
-  // Список месяцев — выводится из самих событий
+  // Список месяцев — события + явно добавленные пустые месяцы
   const months = React.useMemo(() => {
     const set = new Set(events.map(e => e.month));
+    extraMonths.forEach(m => set.add(m));
     return [...set].sort().map(m => ({
       id: m,
       label: monthIdToLabel(m),
       count: events.filter(e => e.month === m).length,
       isPast: m < currentYM,
     }));
-  }, [events, currentYM]);
+  }, [events, extraMonths, currentYM]);
 
   // Прокидываем общий счётчик в боковое меню
   React.useEffect(() => {
@@ -198,8 +215,17 @@ function AdminScheduleEditor() {
       if (!map.has(ev.month)) map.set(ev.month, []);
       map.get(ev.month).push(ev);
     });
+    // Пустые месяцы показываем как отдельные секции (без событий),
+    // но только когда не заданы фильтры по программе/статусу/поиску.
+    if (fCat === 'all' && fStatus === 'all' && !search) {
+      months.forEach(m => {
+        if (m.count === 0 && (fMonth === 'all' || fMonth === m.id) && !map.has(m.id)) {
+          map.set(m.id, []);
+        }
+      });
+    }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered]);
+  }, [filtered, months, fCat, fStatus, fMonth, search]);
 
   function showToast(msg) {
     setToast(msg);
@@ -207,11 +233,11 @@ function AdminScheduleEditor() {
     showToast._t = setTimeout(() => setToast(null), 2400);
   }
 
-  function newEvent() {
-    setEditing({
+  function blankEvent(monthId) {
+    return {
       id: 'new',
-      month: months[0] ? months[0].id : currentYM,
-      monthLabel: months[0] ? months[0].label : monthIdToLabel(currentYM),
+      month: monthId,
+      monthLabel: monthIdToLabel(monthId),
       category: 'flagship', format: 'offline',
       title: '', dates: '', time: '', duration: '',
       trainer: '', location: '',
@@ -219,7 +245,15 @@ function AdminScheduleEditor() {
       capacity: '', capacityTotal: '',
       featured: false, isNew: false,
       status: 'draft',
-    });
+    };
+  }
+
+  function newEvent() {
+    setEditing(blankEvent(months[0] ? months[0].id : currentYM));
+  }
+
+  function newEventInMonth(monthId) {
+    setEditing(blankEvent(monthId));
   }
 
   function saveEvent(data) {
@@ -260,11 +294,17 @@ function AdminScheduleEditor() {
 
   function deleteMonth(monthId) {
     const list = events.filter(e => e.month === monthId);
-    if (!window.confirm(`Удалить ${list.length} ${pluralRu(list.length, 'событие', 'события', 'событий')} в месяце «${monthIdToLabel(monthId)}»?`)) return;
+    const isEmpty = list.length === 0;
+    const msg = isEmpty
+      ? `Удалить месяц «${monthIdToLabel(monthId)}» из расписания?`
+      : `Удалить ${list.length} ${pluralRu(list.length, 'событие', 'события', 'событий')} в месяце «${monthIdToLabel(monthId)}»?`;
+    if (!window.confirm(msg)) return;
     list.forEach(e => apiWrite('DELETE', null, '?id=' + encodeURIComponent(e.id)));
     setEvents(prev => { const n = prev.filter(e => e.month !== monthId); cacheSchedule(n); return n; });
+    setExtraMonths(prev => { const n = prev.filter(m => m !== monthId); cacheMonths(n); return n; });
+    apiWriteMonth('DELETE', null, '?month=' + encodeURIComponent(monthId));
     if (fMonth === monthId) setFMonth('all');
-    showToast('Месяц очищен');
+    showToast(isEmpty ? 'Месяц удалён' : 'Месяц очищен');
   }
 
   function addMonth() {
@@ -284,19 +324,11 @@ function AdminScheduleEditor() {
       showToast('Этот месяц уже есть');
       return;
     }
-    // Создаём черновое событие в новом месяце, чтобы он появился в списке
-    setEditing({
-      id: 'new',
-      month: nextId,
-      monthLabel: monthIdToLabel(nextId),
-      category: 'flagship', format: 'offline',
-      title: '', dates: '', time: '', duration: '',
-      trainer: '', location: '',
-      price: '', priceNote: '',
-      capacity: '', capacityTotal: '',
-      featured: false, isNew: false,
-      status: 'draft',
-    });
+    // Добавляем пустой месяц в расписание. Событие в него можно
+    // создать позже — кнопкой «Добавить событие» в строке месяца.
+    setExtraMonths(prev => { const n = [...prev, nextId]; cacheMonths(n); return n; });
+    apiWriteMonth('POST', { month: nextId });
+    showToast('Месяц добавлен');
   }
 
   return (
@@ -386,7 +418,7 @@ function AdminScheduleEditor() {
 
       {/* Table */}
       <div className="om-adm-table-wrap">
-        {filtered.length === 0 ? (
+        {grouped.length === 0 ? (
           <div className="om-adm-empty">
             <LucideIcon name="calendar-x" size={36} style={{ marginBottom: 12, opacity: 0.45 }} />
             <div style={{ fontSize: 15, color: 'var(--om-ink)', fontWeight: 500, marginBottom: 4 }}>
@@ -419,6 +451,22 @@ function AdminScheduleEditor() {
                       {monthIdToLabel(monthId)} · {list.length} {pluralRu(list.length, 'событие', 'события', 'событий')}
                     </td>
                   </tr>
+                  {list.length === 0 && (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '16px 20px' }}>
+                        <span style={{ fontSize: 13, color: 'var(--om-muted)', marginRight: 12 }}>
+                          В этом месяце пока нет событий.
+                        </span>
+                        <button
+                          className="om-adm-month-add"
+                          onClick={() => newEventInMonth(monthId)}
+                        >
+                          <LucideIcon name="plus" size={13} />
+                          Добавить событие
+                        </button>
+                      </td>
+                    </tr>
+                  )}
                   {list.map(ev => {
                     const cat = categoryMeta(ev.category);
                     const st  = statusMeta(ev.status);

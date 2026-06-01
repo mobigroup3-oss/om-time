@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS schedule_events (
   is_new         BOOLEAN NOT NULL DEFAULT false      -- бейдж «новое»
 );
 
+-- ── Пустые месяцы расписания ───────────────────────────────
+-- Месяц в расписании может существовать ещё до того, как в него добавлено
+-- событие (кнопка «Новый месяц» в AdminScheduleEditor). Месяцы с событиями
+-- выводятся из schedule_events; здесь хранятся только явно добавленные пустые.
+-- localStorage('omtime.schedule.months.v1') — клиентский кэш этой таблицы.
+CREATE TABLE IF NOT EXISTS schedule_months (
+  month       TEXT PRIMARY KEY,                    -- 2026-02
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ── Слайды Hero-карусели ───────────────────────────────────
 -- localStorage('om-hero-carousel') (AdminHeroCarousel).
 -- Структура слайда хранится как JSON — гибко под текущий редактор.
@@ -115,3 +125,9 @@ CREATE TABLE IF NOT EXISTS hero_slides (
 -- Добавлено: поле show_in_hero для блока «Ближайшее событие» на главной.
 -- Безопасно запускать повторно (IF NOT EXISTS).
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS show_in_hero BOOLEAN NOT NULL DEFAULT false;
+
+-- Добавлено: таблица пустых месяцев расписания (кнопка «Новый месяц»).
+CREATE TABLE IF NOT EXISTS schedule_months (
+  month       TEXT PRIMARY KEY,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

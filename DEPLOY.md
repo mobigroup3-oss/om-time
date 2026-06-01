@@ -6,7 +6,8 @@
 - `vercel.json` — конфиг (чистые URL, редирект `/` → маркетинг).
 - `package.json` — зависимость `@vercel/postgres` для функций (Build Command пустой).
 - `api/` — функции: `booking.js` (приём заявок), `programs.js`, `team.js`,
-  `schedule.js`, `hero.js`, `requests.js` (CRUD для кабинета), `_lib.js` (общие хелперы).
+  `schedule.js` (события расписания), `schedule-months.js` (пустые месяцы расписания),
+  `hero.js`, `requests.js` (CRUD для кабинета), `_lib.js` (общие хелперы).
 - `db/schema.sql` — схема БД; `db/seed.sql` — реальный текущий контент сайта.
 
 **Как это работает.** Витрины (программы, команда, расписание, Hero) и редакторы
