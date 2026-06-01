@@ -227,34 +227,122 @@ html, body { background: var(--om-canvas); }
   overflow: hidden;
 }
 .om-adm-table {
-  width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: separate; border-spacing: 0;
 }
 .om-adm-table thead th {
   text-align: left;
   font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--om-muted); font-weight: 500;
-  padding: 16px 20px;
+  padding: 15px 20px;
   background: var(--om-canvas);
   border-bottom: 1px solid var(--om-hairline);
 }
 .om-adm-table tbody tr {
-  border-bottom: 1px solid var(--om-hairline-soft);
-  transition: background 140ms ease;
+  transition: background var(--om-dur-base) var(--om-ease-standard);
 }
-.om-adm-table tbody tr:last-child { border-bottom: none; }
-.om-adm-table tbody tr:hover { background: var(--om-canvas); }
 .om-adm-table td {
-  padding: 16px 20px;
+  padding: 15px 20px;
   font-size: 13px;
   color: var(--om-body);
   vertical-align: middle;
+  border-bottom: 1px solid var(--om-hairline-soft);
 }
-.om-adm-cell-title { font-weight: 500; color: var(--om-ink); }
+.om-adm-table tbody tr:last-child td { border-bottom: none; }
+
+/* Цветной акцент-рейл категории на ведущей ячейке. Спокойный по умолчанию,
+   оживает на hover вместе с лёгким градиентным подсветом строки. */
+.om-adm-table tbody tr td:first-child { position: relative; }
+.om-adm-table tbody tr[data-cat] td:first-child::before {
+  content: '';
+  position: absolute; left: 0; top: 9px; bottom: 9px;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--cat, transparent); opacity: 0.5;
+  transition: opacity var(--om-dur-base) var(--om-ease-standard),
+              width var(--om-dur-base) var(--om-ease-standard);
+}
+.om-adm-table tbody tr[data-cat]:hover td:first-child::before { opacity: 1; width: 4px; }
+
+.om-adm-table tbody tr[data-cat="flagship"] { --cat: var(--om-gold); }
+.om-adm-table tbody tr[data-cat="club"]     { --cat: var(--om-sage-deep); }
+.om-adm-table tbody tr[data-cat="detox"]    { --cat: #8472B8; }
+.om-adm-table tbody tr[data-cat="teen"]     { --cat: var(--om-coral); }
+
+.om-adm-table tbody tr:hover { background: var(--om-canvas); }
+.om-adm-table tbody tr[data-cat]:hover {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--cat) 9%, transparent), transparent 55%),
+    var(--om-canvas);
+}
+
+.om-adm-cell-title {
+  font-weight: 500; color: var(--om-ink);
+  font-size: 14px; letter-spacing: -0.01em;
+}
 .om-adm-cell-meta {
   font-size: 11px; color: var(--om-muted); margin-top: 3px;
 }
 .om-adm-cell-mono {
   font-family: var(--om-font-mono); font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Price cell ──────────────────────────────────────────── */
+.om-adm-price-cell { text-align: right; white-space: nowrap; }
+.om-price-wrap {
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}
+.om-price { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.om-price-num {
+  font-family: var(--om-font-mono); font-variant-numeric: tabular-nums;
+  font-size: 15px; font-weight: 500; color: var(--om-ink); letter-spacing: -0.01em;
+}
+.om-price-cur { font-size: 12px; color: var(--om-muted); }
+.om-price-note {
+  font-size: 10.5px; line-height: 1.3; color: var(--om-coral-deep);
+  background: rgba(192, 58, 59, 0.08);
+  padding: 2px 8px; border-radius: var(--om-radius-pill);
+  max-width: 190px; white-space: normal; text-align: right;
+}
+
+/* ── Capacity meter ──────────────────────────────────────── */
+.om-cap { display: inline-flex; flex-direction: column; gap: 6px; min-width: 66px; }
+.om-cap-bar {
+  position: relative; height: 5px; border-radius: 999px;
+  background: var(--om-hairline); overflow: hidden;
+}
+.om-cap-bar > span {
+  position: absolute; left: 0; top: 0; height: 100%;
+  border-radius: 999px; background: var(--om-sage-deep);
+  transition: width var(--om-dur-slow) var(--om-ease-out);
+}
+.om-cap[data-level="low"]  .om-cap-bar > span { background: var(--om-warning); }
+.om-cap[data-level="full"] .om-cap-bar > span { background: var(--om-coral); }
+.om-cap-label {
+  font-family: var(--om-font-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; color: var(--om-muted); letter-spacing: 0.02em;
+}
+.om-cap[data-level="full"] .om-cap-label { color: var(--om-coral-deep); }
+
+/* ── Status pill ─────────────────────────────────────────── */
+.om-status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; padding: 4px 11px 4px 9px;
+  border-radius: var(--om-radius-pill);
+  background: var(--om-canvas); border: 1px solid var(--om-hairline);
+  color: var(--om-body);
+}
+.om-status-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.om-status-pill[data-status="published"] {
+  background: rgba(78, 107, 63, 0.10); border-color: rgba(78, 107, 63, 0.22);
+  color: var(--om-sage-deep);
+}
+.om-status-pill[data-status="draft"] {
+  background: rgba(196, 147, 33, 0.12); border-color: rgba(196, 147, 33, 0.26);
+  color: var(--om-gold-deep);
+}
+.om-status-pill[data-status="archived"] {
+  background: var(--om-canvas-soft); border-color: var(--om-hairline);
+  color: var(--om-muted);
 }
 
 .om-adm-actions {
@@ -478,10 +566,56 @@ html, body { background: var(--om-canvas); }
     border-right: none; border-bottom: 1px solid var(--om-hairline);
   }
   .om-acc-main { padding: 28px 24px 64px; }
+
+  /* ── Расписание: таблица → карточки ───────────────────── */
+  .om-adm-table-wrap {
+    border: none; background: transparent; border-radius: 0; overflow: visible;
+  }
   .om-adm-table thead { display: none; }
   .om-adm-table, .om-adm-table tbody, .om-adm-table tr, .om-adm-table td { display: block; }
-  .om-adm-table tr { padding: 14px 18px; }
-  .om-adm-table td { padding: 4px 0; }
+
+  /* Заголовок месяца и строка «нет событий» — обычные блоки на канве */
+  .om-adm-table tbody tr > td[colspan] {
+    padding: 14px 2px 8px !important;
+    background: transparent !important;
+  }
+
+  /* Карточка события */
+  .om-adm-table tbody tr[data-cat] {
+    background: var(--om-canvas-white);
+    border: 1px solid var(--om-hairline);
+    border-left: 3px solid var(--cat);
+    border-radius: var(--om-radius-md);
+    box-shadow: var(--om-shadow-card);
+    padding: 4px 16px 12px;
+    margin-bottom: 12px;
+  }
+  .om-adm-table tbody tr[data-cat]:hover { background: var(--om-canvas-white); }
+  /* Десктопный рейл-псевдоэлемент не нужен — его заменяет border-left */
+  .om-adm-table tbody tr[data-cat] td:first-child::before { display: none; }
+
+  .om-adm-table tbody tr[data-cat] td {
+    padding: 9px 0 0; border: none;
+  }
+  /* Шапка карточки: тег + название */
+  .om-adm-table tbody tr[data-cat] td:first-child {
+    padding: 12px 0; margin-bottom: 4px;
+    border-bottom: 1px solid var(--om-hairline-soft);
+  }
+  /* Поле «подпись сверху → значение снизу» */
+  .om-adm-table tbody tr[data-cat] td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: 5px;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--om-muted); font-weight: 500;
+  }
+  /* Цена на мобильном — выравниваем по левому краю, как остальные поля */
+  .om-adm-table tbody tr[data-cat] td.om-adm-price-cell { text-align: left; }
+  .om-adm-table tbody tr[data-cat] .om-price-wrap { align-items: flex-start; }
+  .om-adm-table tbody tr[data-cat] .om-price-note { text-align: left; }
+  /* Действия — кнопки в ряд под полями */
+  .om-adm-table tbody tr[data-cat] td:last-child { padding-top: 12px; }
+  .om-adm-table tbody tr[data-cat] .om-adm-actions { justify-content: flex-start; }
+
   .om-form-grid { grid-template-columns: 1fr; }
   .om-stat-grid { grid-template-columns: repeat(2, 1fr); }
   .om-chart-grid { grid-template-columns: 1fr; }

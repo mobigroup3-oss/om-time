@@ -142,6 +142,50 @@ function deriveDisplay(ev) {
   return { tag, tagClass, formatLabel };
 }
 
+/* ── Presentational cells (modern table) ──────────────────────────────── */
+
+// Метр заполнения мест: тонкая дорожка + табличная подпись «занято / всего».
+// Цвет шкалы смещается по заполненности: sage → жёлтый → коралл.
+function CapacityMeter({ free, total }) {
+  const f = Number(free) || 0;
+  const t = Number(total) || 0;
+  const taken = Math.max(0, t - f);
+  const pct = t > 0 ? Math.max(4, Math.min(100, Math.round((taken / t) * 100))) : 0;
+  const level = f <= 0 ? 'full' : (f <= Math.max(2, Math.round(t * 0.25)) ? 'low' : 'ok');
+  return (
+    <div className="om-cap" data-level={level} title={`Занято ${taken} из ${t}`}>
+      <div className="om-cap-bar"><span style={{ width: pct + '%' }}></span></div>
+      <span className="om-cap-label">{taken} / {t}</span>
+    </div>
+  );
+}
+
+// Цена: крупная моноширинная цифра в одну строку (tabular-nums, без переноса),
+// приглушённый знак валюты и мягкий коралловый чип примечания к цене.
+function PriceCell({ price, note }) {
+  if (!price) return <span style={{ color: 'var(--om-faint)' }}>—</span>;
+  return (
+    <div className="om-price-wrap">
+      <span className="om-price">
+        <span className="om-price-num">{price}</span>
+        <span className="om-price-cur">₸</span>
+      </span>
+      {note ? <span className="om-price-note">{note}</span> : null}
+    </div>
+  );
+}
+
+// Статус как мягкая тонированная пилюля с цветной точкой.
+function StatusPill({ status }) {
+  const st = statusMeta(status);
+  return (
+    <span className="om-status-pill" data-status={status}>
+      <span className="om-status-dot" style={{ background: st.dot }}></span>
+      {st.label}
+    </span>
+  );
+}
+
 /* ── Editor ───────────────────────────────────────────────────────────── */
 
 function AdminScheduleEditor() {
@@ -469,40 +513,34 @@ function AdminScheduleEditor() {
                   )}
                   {list.map(ev => {
                     const cat = categoryMeta(ev.category);
-                    const st  = statusMeta(ev.status);
                     return (
-                      <tr key={ev.id}>
+                      <tr key={ev.id} data-cat={ev.category}>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                             <span className={`om-tag-mini ${cat.tagClass}`}>{cat.label}</span>
                           </div>
                           <div className="om-adm-cell-title">{ev.title || <span style={{ color: 'var(--om-faint)' }}>(без названия)</span>}</div>
                         </td>
-                        <td>
+                        <td data-label="Даты · время">
                           <div>{ev.dates}</div>
                           <div className="om-adm-cell-meta">{ev.time}{ev.duration ? ` · ${ev.duration}` : ''}</div>
                         </td>
-                        <td>
+                        <td data-label="Тренер · формат">
                           <div>{ev.trainer || <span style={{ color: 'var(--om-faint)' }}>—</span>}</div>
                           <div className="om-adm-cell-meta">
                             {ev.format === 'online' ? 'Онлайн' : `Офлайн${ev.location ? ', ' + ev.location : ''}`}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Места">
                           {ev.capacityTotal
-                            ? <span className="om-adm-cell-mono">{ev.capacityTotal - ev.capacity} / {ev.capacityTotal}</span>
+                            ? <CapacityMeter free={ev.capacity} total={ev.capacityTotal} />
                             : <span style={{ color: 'var(--om-faint)' }}>—</span>}
                         </td>
-                        <td className="om-adm-cell-mono" style={{ textAlign: 'right' }}>
-                          {ev.price ? ev.price + ' ₸' : <span style={{ color: 'var(--om-faint)' }}>—</span>}
+                        <td className="om-adm-price-cell" data-label="Цена">
+                          <PriceCell price={ev.price} note={ev.priceNote} />
                         </td>
-                        <td>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                            <span style={{
-                              width: 7, height: 7, borderRadius: '50%', background: st.dot,
-                            }}></span>
-                            {st.label}
-                          </span>
+                        <td data-label="Статус">
+                          <StatusPill status={ev.status} />
                         </td>
                         <td>
                           <div className="om-adm-actions">
