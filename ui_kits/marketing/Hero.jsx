@@ -5,13 +5,13 @@
    (data stored in localStorage key "om-hero-carousel"). */
 
 const HERO_DEFAULT_SLIDES = [
-  { id: 'd2', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%202.png', label: '' },
-  { id: 'd3', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%203.png', label: '' },
-  { id: 'd4', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%204.png', label: '' },
-  { id: 'd5', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%205.png', label: '' },
-  { id: 'd6', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%206.png', label: '' },
-  { id: 'd7', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%207.png', label: '' },
-  { id: 'd8', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%208.png', label: '' },
+  { id: 'd2', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%202.webp', label: '' },
+  { id: 'd3', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%203.webp', label: '' },
+  { id: 'd4', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%204.webp', label: '' },
+  { id: 'd5', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%205.webp', label: '' },
+  { id: 'd6', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%206.webp', label: '' },
+  { id: 'd7', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%207.webp', label: '' },
+  { id: 'd8', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%208.webp', label: '' },
 ];
 
 // Месяцы в родительном падеже (как в мини-календаре блока «Ближайшее событие»).
@@ -52,11 +52,18 @@ function heroFeaturedEvent(c) {
   };
 }
 
+// Последнее успешно полученное «Ближайшее событие» кэшируется в localStorage,
+// чтобы блок появлялся мгновенно и не «пропадал» при холодном старте /api/programs.
+function heroLoadFeaturedCache() {
+  try { return JSON.parse(localStorage.getItem('om-hero-featured') || 'null'); }
+  catch (e) { return null; }
+}
+
 function Hero() {
   const [slides, setSlides] = React.useState([]);
   const [activeIdx, setActiveIdx] = React.useState(0);
-  const [featured, setFeatured] = React.useState(null);
-  const [featuredLoaded, setFeaturedLoaded] = React.useState(false);
+  const [featured, setFeatured] = React.useState(heroLoadFeaturedCache);
+  const [featuredLoaded, setFeaturedLoaded] = React.useState(() => heroLoadFeaturedCache() != null);
 
   function loadSlides() {
     try {
@@ -89,10 +96,14 @@ function Hero() {
         if (!alive || !j || !j.ok || !Array.isArray(j.data)) return;
         // showInHero — явная галочка «Ближайшее событие»; featured — обратная совместимость
         const flag = j.data.find(p => p.showInHero) || j.data.find(p => p.featured);
-        if (flag) setFeatured(heroFeaturedEvent(flag));
+        if (flag) {
+          const ev = heroFeaturedEvent(flag);
+          setFeatured(ev);
+          try { localStorage.setItem('om-hero-featured', JSON.stringify(ev)); } catch (e) {}
+        }
         setFeaturedLoaded(true);
       })
-      .catch(() => { if (alive) setFeaturedLoaded(true); }); // нет сервера — прячем блок
+      .catch(() => { if (alive) setFeaturedLoaded(true); }); // нет сервера — показываем кэш, если есть
     return () => { alive = false; };
   }, []);
 
@@ -191,7 +202,14 @@ function Hero() {
                     className={'om-hero-carousel-slide' + (i === activeIdx ? ' is-active' : '')}
                     aria-hidden={i !== activeIdx}
                   >
-                    <img src={slide.url} alt={slide.label || 'Реклама'} />
+                    <img
+                      src={slide.url}
+                      alt={slide.label || 'Реклама'}
+                      width="960"
+                      height="1280"
+                      decoding="async"
+                      fetchpriority={i === activeIdx ? 'high' : 'low'}
+                    />
                   </div>
                 ))}
                 {slides.length > 1 && (

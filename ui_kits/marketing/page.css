@@ -1679,12 +1679,14 @@ html.om-no-scroll, html.om-no-scroll body { overflow: hidden; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ---- Cards --------------------------------------------------------- */
 .om-suit-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--om-radius-xl);
   padding: 14px 44px 40px;
   overflow: hidden;
@@ -1785,6 +1787,7 @@ html.om-no-scroll, html.om-no-scroll body { overflow: hidden; }
   padding: 0;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 .om-suit-item {
   display: flex;
