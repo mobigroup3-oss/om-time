@@ -56,6 +56,7 @@ function Hero() {
   const [slides, setSlides] = React.useState([]);
   const [activeIdx, setActiveIdx] = React.useState(0);
   const [featured, setFeatured] = React.useState(null);
+  const [featuredLoaded, setFeaturedLoaded] = React.useState(false);
 
   function loadSlides() {
     try {
@@ -89,8 +90,9 @@ function Hero() {
         // showInHero — явная галочка «Ближайшее событие»; featured — обратная совместимость
         const flag = j.data.find(p => p.showInHero) || j.data.find(p => p.featured);
         if (flag) setFeatured(heroFeaturedEvent(flag));
+        setFeaturedLoaded(true);
       })
-      .catch(() => {}); // нет сервера/флагмана — остаётся дефолтное событие
+      .catch(() => { if (alive) setFeaturedLoaded(true); }); // нет сервера — прячем блок
     return () => { alive = false; };
   }, []);
 
@@ -210,26 +212,28 @@ function Hero() {
             )}
           </div>
 
-          <a href={featured ? 'programs.html' : 'schedule.html'} className="om-hero-events">
-            <div className="om-hero-events-cal">
-              <span className="om-hero-events-cal-d">{featured ? (featured.day || '—') : '10'}</span>
-              <span className="om-hero-events-cal-m">{featured ? featured.month : 'июня'}</span>
-            </div>
-            <div className="om-hero-events-body">
-              <div className="om-hero-events-label">
-                <span className="om-hero-events-pulse"></span>
-                Ближайшее событие
+          {featuredLoaded && featured && (
+            <a href="programs.html" className="om-hero-events">
+              <div className="om-hero-events-cal">
+                <span className="om-hero-events-cal-d">{featured.day || '—'}</span>
+                <span className="om-hero-events-cal-m">{featured.month}</span>
               </div>
-              <div className="om-hero-events-name">{featured ? featured.title : 'Терапевтическая группа'}</div>
-              <div className="om-hero-events-trainer">{featured ? featured.trainer : 'Дян Н.Г. · Алматы · 18:00'}</div>
-            </div>
-            <div className="om-hero-events-aside">
-              <span className="om-hero-events-price">{featured ? featured.price : '15 000₸'}</span>
-              <span className="om-hero-events-go" aria-hidden="true">
-                <i data-lucide="arrow-up-right" style={{ width: 16, height: 16 }}></i>
-              </span>
-            </div>
-          </a>
+              <div className="om-hero-events-body">
+                <div className="om-hero-events-label">
+                  <span className="om-hero-events-pulse"></span>
+                  Ближайшее событие
+                </div>
+                <div className="om-hero-events-name">{featured.title}</div>
+                <div className="om-hero-events-trainer">{featured.trainer}</div>
+              </div>
+              <div className="om-hero-events-aside">
+                <span className="om-hero-events-price">{featured.price}</span>
+                <span className="om-hero-events-go" aria-hidden="true">
+                  <i data-lucide="arrow-up-right" style={{ width: 16, height: 16 }}></i>
+                </span>
+              </div>
+            </a>
+          )}
         </div>
       </div>
 
