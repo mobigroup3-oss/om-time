@@ -408,11 +408,21 @@
         scrollTrigger: { trigger: section, start: 'top 82%' },
       });
     }
-    ScrollTrigger.batch('[data-animate="compare-row"]', {
+    // Lanes fade/grow in behind the cells
+    var lanes = section.querySelectorAll('.om-compare-lane');
+    if (lanes.length) {
+      gsap.from(lanes, {
+        opacity: 0, scaleY: 0.96, transformOrigin: 'top center',
+        duration: 0.6, ease: 'power2.out',
+        scrollTrigger: { trigger: section, start: 'top 80%' },
+      });
+    }
+    // Rows are display:contents wrappers — animate their cells instead
+    ScrollTrigger.batch('[data-animate="compare-row"] > .om-compare-cell', {
       start: 'top 92%',
       onEnter: function (batch) {
         gsap.from(batch, {
-          y: 24, opacity: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out',
+          y: 24, opacity: 0, duration: 0.5, stagger: 0.04, ease: 'power2.out',
           clearProps: 'transform,opacity',
         });
       },
