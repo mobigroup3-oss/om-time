@@ -210,6 +210,7 @@
                   <th>Канал</th>
                   <th>Дата</th>
                   <th>Статус</th>
+                  <th>Комментарий</th>
                   <th style={{ textAlign: 'right' }}>Действия</th>
                 </tr>
               </thead>
@@ -231,6 +232,16 @@
                       </td>
                       <td className="om-adm-cell-mono">{fmtDate(r.createdAt)}</td>
                       <td><StatusBadge status={r.status} /></td>
+                      <td>
+                        {r.note && r.note.trim() ? (
+                          <span style={S.noteCell} title={r.note}>
+                            <LucideIcon name="message-square" size={13} style={{ flexShrink: 0, marginTop: 2, color: 'var(--om-faint)' }} />
+                            <span style={S.noteText}>{r.note}</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--om-faint)' }}>—</span>
+                        )}
+                      </td>
                       <td>
                         <div className="om-adm-actions">
                           <button className="om-adm-icon-btn" title="Открыть" onClick={() => setEditing(r.id)}>
@@ -361,6 +372,14 @@
   }
 
   const S = {
+    noteCell: {
+      display: 'flex', alignItems: 'flex-start', gap: 6,
+      maxWidth: 280, color: 'var(--om-muted)',
+    },
+    noteText: {
+      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+      overflow: 'hidden', lineHeight: 1.4, fontSize: 13,
+    },
     deleteBtn: {
       marginRight: 'auto',
       display: 'inline-flex', alignItems: 'center',
