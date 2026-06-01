@@ -363,6 +363,133 @@ html, body { background: var(--om-canvas); }
   padding: 64px 24px; text-align: center; color: var(--om-muted);
 }
 
+/* ── Requests: card list ─────────────────────────────────────
+   Заявки выведены карточками, а не таблицей: ключевые поля
+   (имя, телефон, дата) не переносятся, длинный комментарий виден
+   целиком, у каждой программы — свой цвет акцент-рейла. */
+.om-req-list { display: flex; flex-direction: column; gap: 14px; }
+
+.om-req-card {
+  --cat: var(--om-indigo);
+  position: relative;
+  display: flex; align-items: flex-start; gap: 18px;
+  background: var(--om-canvas-white);
+  border: 1px solid var(--om-hairline);
+  border-radius: var(--om-radius-lg);
+  padding: 18px 22px 18px 26px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform var(--om-dur-base) var(--om-ease-standard),
+              box-shadow var(--om-dur-base) var(--om-ease-standard),
+              border-color var(--om-dur-base) var(--om-ease-standard);
+  animation: omReqRise 460ms var(--om-ease-out) backwards;
+}
+.om-req-card[data-cat="flagship"] { --cat: var(--om-gold-deep); }
+.om-req-card[data-cat="club"]     { --cat: var(--om-sage-deep); }
+.om-req-card[data-cat="detox"]    { --cat: #8472B8; }
+.om-req-card[data-cat="teen"]     { --cat: var(--om-coral); }
+.om-req-card[data-cat="consult"]  { --cat: var(--om-indigo); }
+
+@keyframes omReqRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Акцент-рейл слева — спокойный, оживает на hover */
+.om-req-card::before {
+  content: '';
+  position: absolute; left: 0; top: 16px; bottom: 16px;
+  width: 3px; border-radius: 0 4px 4px 0;
+  background: var(--cat); opacity: 0.5;
+  transition: opacity var(--om-dur-base) var(--om-ease-standard),
+              width var(--om-dur-base) var(--om-ease-standard),
+              top var(--om-dur-base) var(--om-ease-standard),
+              bottom var(--om-dur-base) var(--om-ease-standard);
+}
+.om-req-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(27, 24, 64, 0.13);
+  border-color: transparent;
+}
+.om-req-card:hover::before { opacity: 1; width: 5px; top: 0; bottom: 0; }
+
+/* Аватар-инициалы */
+.om-req-avatar {
+  flex: none; width: 46px; height: 46px;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  font-size: 15px; font-weight: 600; letter-spacing: 0.01em;
+  color: var(--om-on-indigo);
+  background: linear-gradient(140deg, var(--om-indigo), var(--om-indigo-deep));
+  box-shadow: 0 6px 16px rgba(27, 24, 64, 0.18);
+}
+
+.om-req-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.om-req-headline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.om-req-name {
+  font-size: 16px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--om-ink); white-space: nowrap;
+}
+.om-req-phone {
+  font-family: var(--om-font-mono); font-variant-numeric: tabular-nums;
+  font-size: 12.5px; color: var(--om-muted); white-space: nowrap;
+}
+
+.om-req-meta { display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; }
+.om-req-program {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 500; color: var(--om-ink); white-space: nowrap;
+}
+.om-req-program::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cat); flex: none;
+}
+.om-req-meta-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--om-muted); white-space: nowrap;
+}
+.om-req-meta-item svg { color: var(--om-faint); flex: none; }
+
+.om-req-note {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin-top: 2px; padding: 10px 14px;
+  background: var(--om-canvas);
+  border-radius: var(--om-radius-md);
+  font-size: 13px; line-height: 1.45; color: var(--om-body);
+}
+.om-req-note svg { flex: none; margin-top: 2px; color: var(--cat); opacity: 0.8; }
+
+.om-req-aside {
+  flex: none;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+}
+.om-req-actions {
+  display: inline-flex; gap: 4px;
+  opacity: 0; transform: translateX(8px);
+  transition: opacity var(--om-dur-base) var(--om-ease-standard),
+              transform var(--om-dur-base) var(--om-ease-standard);
+}
+.om-req-card:hover .om-req-actions { opacity: 1; transform: none; }
+
+/* Touch-устройства без hover — действия всегда видны */
+@media (hover: none) {
+  .om-req-actions { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .om-req-card { animation: none; }
+  .om-req-actions { opacity: 1; transform: none; }
+  .om-req-card:hover { transform: none; }
+}
+
+@media (max-width: 560px) {
+  .om-req-card { padding: 16px 16px 16px 20px; gap: 14px; }
+  .om-req-avatar { width: 40px; height: 40px; font-size: 13px; }
+  .om-req-name { white-space: normal; }
+  .om-req-aside { gap: 10px; }
+}
+
 /* ── Tag pills (mirrors marketing) ───────────────────────── */
 .om-tag-mini {
   display: inline-flex; align-items: center; gap: 4px;

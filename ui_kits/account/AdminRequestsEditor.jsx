@@ -46,6 +46,18 @@
   const statusInfo = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
   const channelInfo = (id) => CHANNELS.find(c => c.id === id) || CHANNELS[0];
 
+  // Категория программы → цвет акцента карточки (см. .om-req-card[data-cat] в account.css).
+  const PROGRAM_CAT = {
+    'flagship-offline': 'flagship', 'flagship-online': 'flagship',
+    club: 'club', teen: 'teen', detox: 'detox', consult: 'consult',
+  };
+  const programCat = (id) => PROGRAM_CAT[id] || 'consult';
+  const initials = (name) => {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '—';
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  };
+
   const fmtDate = (iso) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -201,65 +213,64 @@
             </div>
           </div>
         ) : (
-          <div className="om-adm-table-wrap">
-            <table className="om-adm-table">
-              <thead>
-                <tr>
-                  <th>Клиент</th>
-                  <th>Программа</th>
-                  <th>Канал</th>
-                  <th>Дата</th>
-                  <th>Статус</th>
-                  <th>Комментарий</th>
-                  <th style={{ textAlign: 'right' }}>Действия</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => {
-                  const ch = channelInfo(r.channel);
-                  return (
-                    <tr key={r.id}>
-                      <td>
-                        <div className="om-adm-cell-title">{r.name}</div>
-                        <div className="om-adm-cell-meta om-adm-cell-mono">{r.phone}</div>
-                      </td>
-                      <td>{programTitle(r.programId)}</td>
-                      <td>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--om-muted)' }}>
-                          <LucideIcon name={ch.icon} size={14} />
-                          {ch.label}
-                        </span>
-                      </td>
-                      <td className="om-adm-cell-mono">{fmtDate(r.createdAt)}</td>
-                      <td><StatusBadge status={r.status} /></td>
-                      <td>
-                        {r.note && r.note.trim() ? (
-                          <span style={S.noteCell} title={r.note}>
-                            <LucideIcon name="message-square" size={13} style={{ flexShrink: 0, marginTop: 2, color: 'var(--om-faint)' }} />
-                            <span style={S.noteText}>{r.note}</span>
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--om-faint)' }}>—</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="om-adm-actions">
-                          <button className="om-adm-icon-btn" title="Открыть" onClick={() => setEditing(r.id)}>
-                            <LucideIcon name="pencil" size={16} />
-                          </button>
-                          <button
-                            className="om-adm-icon-btn" data-danger="true" title="Удалить"
-                            onClick={() => handleDelete(r.id)}
-                          >
-                            <LucideIcon name="trash-2" size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="om-req-list">
+            {filtered.map((r, i) => {
+              const ch = channelInfo(r.channel);
+              const note = (r.note || '').trim();
+              return (
+                <article
+                  key={r.id}
+                  className="om-req-card"
+                  data-cat={programCat(r.programId)}
+                  style={{ animationDelay: (i * 55) + 'ms' }}
+                  onClick={() => setEditing(r.id)}
+                  title="Открыть заявку"
+                >
+                  <div className="om-req-avatar" aria-hidden="true">{initials(r.name)}</div>
+
+                  <div className="om-req-main">
+                    <div className="om-req-headline">
+                      <span className="om-req-name">{r.name}</span>
+                      <span className="om-req-phone">{r.phone}</span>
+                    </div>
+
+                    <div className="om-req-meta">
+                      <span className="om-req-program">{programTitle(r.programId)}</span>
+                      <span className="om-req-meta-item">
+                        <LucideIcon name={ch.icon} size={14} />
+                        {ch.label}
+                      </span>
+                      <span className="om-req-meta-item">
+                        <LucideIcon name="calendar" size={14} />
+                        {fmtDate(r.createdAt)}
+                      </span>
+                    </div>
+
+                    {note && (
+                      <div className="om-req-note">
+                        <LucideIcon name="message-square" size={14} />
+                        <span>{note}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="om-req-aside" onClick={e => e.stopPropagation()}>
+                    <StatusBadge status={r.status} />
+                    <div className="om-req-actions">
+                      <button className="om-adm-icon-btn" title="Открыть" onClick={() => setEditing(r.id)}>
+                        <LucideIcon name="pencil" size={16} />
+                      </button>
+                      <button
+                        className="om-adm-icon-btn" data-danger="true" title="Удалить"
+                        onClick={() => handleDelete(r.id)}
+                      >
+                        <LucideIcon name="trash-2" size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
 
@@ -372,14 +383,6 @@
   }
 
   const S = {
-    noteCell: {
-      display: 'flex', alignItems: 'flex-start', gap: 6,
-      maxWidth: 280, color: 'var(--om-muted)',
-    },
-    noteText: {
-      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-      overflow: 'hidden', lineHeight: 1.4, fontSize: 13,
-    },
     deleteBtn: {
       marginRight: 'auto',
       display: 'inline-flex', alignItems: 'center',
