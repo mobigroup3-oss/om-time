@@ -813,6 +813,21 @@ function teamFromApi(c) {
   };
 }
 
+// Кэш из личного кабинета (AdminTeamEditor пишет 'omtime.team.v1' в той же
+// localStorage — один домен). Используется как фолбэк, когда /api/team
+// недоступен (локальный предпросмотр без сервера), чтобы правки из кабинета
+// — включая загруженные фото — были видны на публичной странице.
+function readLocalTeam() {
+  try {
+    const raw = localStorage.getItem('omtime.team.v1');
+    const arr = raw && JSON.parse(raw);
+    if (Array.isArray(arr) && arr.length) {
+      return arr.filter(m => m && m.active !== false).map(teamFromApi);
+    }
+  } catch (e) {}
+  return null;
+}
+
 function TeamPage() {
   const [filter, setFilter] = React.useState('all');
   const [team, setTeam] = React.useState(SEED_TEAM);
@@ -821,8 +836,16 @@ function TeamPage() {
     let alive = true;
     fetch('/api/team')
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(j => { if (alive && j && j.ok && j.data && j.data.length) setTeam(j.data.map(teamFromApi)); })
-      .catch(() => {});
+      .then(j => {
+        if (!alive) return;
+        if (j && j.ok && j.data && j.data.length) { setTeam(j.data.map(teamFromApi)); return; }
+        throw new Error('empty');
+      })
+      .catch(() => {
+        if (!alive) return;
+        const local = readLocalTeam();
+        if (local && local.length) setTeam(local);
+      });
     return () => { alive = false; };
   }, []);
 

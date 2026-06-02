@@ -425,6 +425,7 @@
                 <select className="om-form-select" value={form.roleCat} onChange={e => set('roleCat', e.target.value)}>
                   {ROLES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
+                <span className="om-form-help">По нему людей фильтруют на сайте</span>
               </label>
 
               <label className="om-form-field">
@@ -444,6 +445,7 @@
                   onChange={e => set('roleLabel', e.target.value)}
                   placeholder="Напр. Клинический психолог"
                 />
+                <span className="om-form-help">Полная подпись под именем</span>
               </label>
 
               <label className="om-form-field">
