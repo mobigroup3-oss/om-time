@@ -3004,17 +3004,13 @@ html:not(.om-anim-ready) [data-animate] {
   }
 }
 
-/* ── Schedule timeline lane ──────────────────────────────────────── */
-/* На узких экранах ось/якорь/рельс убираем — остаётся стопка карточек
-   (дата всё равно дублируется в мете карточки). */
-@media (max-width: 640px) {
-  .om-tl-row { grid-template-columns: 1fr !important; }
-  .om-tl-anchor,
-  .om-tl-rail,
-  .om-tl-axis { display: none !important; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .om-tl-axis { transform: none !important; }
+/* ── Schedule event card ─────────────────────────────────────────── */
+/* Карточки выкладываются авто-сеткой (2-в-ряд на десктопе, 1 на мобиле —
+   через minmax(min(100%,440px),1fr) в JSX). На узких экранах нижний бар
+   складывается, кнопка тянется на всю ширину. */
+@media (max-width: 520px) {
+  .om-evt-card .om-evt-foot { flex-wrap: wrap; }
+  .om-evt-card .om-evt-foot .om-btn { flex: 1; justify-content: center; }
 }
 
 /* ── About page — targets existing classNames in AboutPage.jsx ────── */

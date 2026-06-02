@@ -5,7 +5,7 @@
 // Обёрнут в IIFE: в общий scope попадает только window.AdminTeamEditor.
 
 (function () {
-  const { useState, useEffect } = React;
+  const { useState, useEffect, useRef } = React;
   const LucideIcon = window.LucideIcon;
 
   const TEAM_KEY = 'omtime.team.v1'; // локальный кэш / fallback без сервера
@@ -60,6 +60,36 @@
   const roleInfo = (id) => ROLES.find(r => r.id === id) || ROLES[0];
   const splitList = (str) => str.split(',').map(s => s.trim()).filter(Boolean);
 
+  // Файл фото → квадратный data-URL: центр-кроп + сжатие.
+  // Аватар маленький (макс. 80px на сайте), поэтому 256px с запасом под retina.
+  // WebP с откатом на JPEG — чтобы строка в localStorage/БД была лёгкой.
+  function fileToAvatarDataUrl(file, size) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          const s = size || 256;
+          const canvas = document.createElement('canvas');
+          canvas.width = s; canvas.height = s;
+          const ctx = canvas.getContext('2d');
+          const min = Math.min(img.width, img.height);
+          const sx = (img.width - min) / 2;
+          const sy = (img.height - min) / 2;
+          ctx.drawImage(img, sx, sy, min, min, 0, 0, s, s);
+          let out = '';
+          try { out = canvas.toDataURL('image/webp', 0.82); } catch (e) {}
+          if (out.indexOf('data:image/webp') !== 0) out = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(out);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   function useTeam() {
     const [items, setItems] = useState(() => {
       try {
@@ -82,8 +112,19 @@
     return [items, setItems];
   }
 
-  function Avatar({ initials, tone, size = 48 }) {
+  function Avatar({ initials, tone, size = 48, photo }) {
     const c = TONE_AVATAR[tone] || TONE_AVATAR.lilac;
+    if (photo) {
+      return (
+        <div style={{
+          width: size, height: size, borderRadius: '50%',
+          overflow: 'hidden', flexShrink: 0, userSelect: 'none',
+          background: 'var(--om-canvas)',
+        }}>
+          <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+      );
+    }
     return (
       <div style={{
         width: size, height: size, borderRadius: '50%',
@@ -111,7 +152,7 @@
     };
 
     const blank = {
-      name: '', roleCat: 'psychologist', roleLabel: '', tag: '', tone: 'lilac',
+      name: '', roleCat: 'psychologist', roleLabel: '', tag: '', tone: 'lilac', photo: '',
       spec: [], credentials: [], bio: '',
       years: '', yearsLabel: 'лет практики', sessions: '', sessionsLabel: 'сессий',
       featured: false, active: true,
@@ -217,7 +258,7 @@
             {filtered.map(m => (
               <div key={m.id} style={{ ...S.card, opacity: m.active ? 1 : 0.64 }}>
                 <div style={S.cardTop}>
-                  <Avatar initials={initialsOf(m.name)} tone={m.tone} size={48} />
+                  <Avatar initials={initialsOf(m.name)} tone={m.tone} size={48} photo={m.photo} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span className={'om-tag-mini om-tag-mini--' + m.tone}>{m.tag || roleInfo(m.roleCat).label}</span>
@@ -298,6 +339,21 @@
     const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
     const valid = form.name.trim().length > 0;
 
+    const fileRef = useRef(null);
+    const [photoErr, setPhotoErr] = useState('');
+    const openPicker = () => { if (fileRef.current) fileRef.current.click(); };
+    const onPickPhoto = (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = ''; // позволяем выбрать тот же файл повторно
+      if (!file) return;
+      if (!/^image\//.test(file.type)) { setPhotoErr('Нужен файл изображения'); return; }
+      if (file.size > 8 * 1024 * 1024) { setPhotoErr('Файл больше 8 МБ'); return; }
+      setPhotoErr('');
+      fileToAvatarDataUrl(file, 256)
+        .then(url => set('photo', url))
+        .catch(() => setPhotoErr('Не удалось обработать изображение'));
+    };
+
     const submit = () => {
       if (!valid) return;
       const { specStr, credentialsStr, ...rest } = form;
@@ -319,11 +375,37 @@
           </div>
 
           <div className="om-modal-body">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-              <Avatar initials={initialsOf(form.name) || '—'} tone={form.tone} size={56} />
-              <span className="om-form-help" style={{ margin: 0 }}>
-                Аватар — инициалы имени, цвет задаётся палитрой ниже.
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+              <button type="button" onClick={openPicker} title="Загрузить фото" style={S.avatarBtn}>
+                <Avatar initials={initialsOf(form.name) || '—'} tone={form.tone} size={64} photo={form.photo} />
+                <span style={S.avatarCam}><LucideIcon name="camera" size={13} /></span>
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={onPickPhoto} style={{ display: 'none' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="om-btn om-btn--secondary"
+                    style={{ padding: '8px 14px', fontSize: 13 }}
+                    onClick={openPicker}
+                  >
+                    <LucideIcon name="upload" size={14} style={{ marginRight: 6 }} />
+                    {form.photo ? 'Заменить фото' : 'Загрузить фото'}
+                  </button>
+                  {form.photo && (
+                    <button type="button" style={S.photoRemoveBtn} onClick={() => { set('photo', ''); setPhotoErr(''); }}>
+                      Удалить
+                    </button>
+                  )}
+                </div>
+                <span className="om-form-help" style={{ margin: 0, color: photoErr ? 'var(--om-danger)' : undefined }}>
+                  {photoErr
+                    ? photoErr
+                    : form.photo
+                      ? 'Фото заменит цветной аватар на сайте.'
+                      : 'Без фото на карточке будут инициалы имени на цветном кружке.'}
+                </span>
+              </div>
             </div>
 
             <div className="om-form-grid">
@@ -346,10 +428,11 @@
               </label>
 
               <label className="om-form-field">
-                <span className="om-form-label">Палитра</span>
+                <span className="om-form-label">Цвет аватара</span>
                 <select className="om-form-select" value={form.tone} onChange={e => set('tone', e.target.value)}>
                   {TONES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
+                <span className="om-form-help">Если нет фото</span>
               </label>
 
               <label className="om-form-field">
@@ -364,7 +447,7 @@
               </label>
 
               <label className="om-form-field">
-                <span className="om-form-label">Бейдж</span>
+                <span className="om-form-label">Короткая подпись над именем</span>
                 <input
                   className="om-form-input"
                   type="text"
@@ -372,6 +455,7 @@
                   onChange={e => set('tag', e.target.value)}
                   placeholder="Напр. Психолог"
                 />
+                <span className="om-form-help">Маленькая цветная подпись на карточке</span>
               </label>
 
               <label className="om-form-field om-form-field--full">
@@ -408,8 +492,15 @@
                 <span className="om-form-help">Перечислите через запятую</span>
               </label>
 
+              <div className="om-form-field om-form-field--full" style={{ gap: 2 }}>
+                <span className="om-form-label">Две цифры под карточкой</span>
+                <span className="om-form-help" style={{ marginTop: 0 }}>
+                  Показываются внизу карточки специалиста, например «18 лет практики» и «4 000 участников».
+                </span>
+              </div>
+
               <label className="om-form-field">
-                <span className="om-form-label">Стат. №1 — значение</span>
+                <span className="om-form-label">Цифра 1</span>
                 <input
                   className="om-form-input"
                   type="text"
@@ -420,18 +511,18 @@
               </label>
 
               <label className="om-form-field">
-                <span className="om-form-label">Стат. №1 — подпись</span>
+                <span className="om-form-label">Подпись к цифре 1</span>
                 <input
                   className="om-form-input"
                   type="text"
                   value={form.yearsLabel}
                   onChange={e => set('yearsLabel', e.target.value)}
-                  placeholder="лет практики"
+                  placeholder="Напр. лет практики"
                 />
               </label>
 
               <label className="om-form-field">
-                <span className="om-form-label">Стат. №2 — значение</span>
+                <span className="om-form-label">Цифра 2</span>
                 <input
                   className="om-form-input"
                   type="text"
@@ -442,13 +533,13 @@
               </label>
 
               <label className="om-form-field">
-                <span className="om-form-label">Стат. №2 — подпись</span>
+                <span className="om-form-label">Подпись к цифре 2</span>
                 <input
                   className="om-form-input"
                   type="text"
                   value={form.sessionsLabel}
                   onChange={e => set('sessionsLabel', e.target.value)}
-                  placeholder="участников"
+                  placeholder="Напр. участников"
                 />
               </label>
             </div>
@@ -553,6 +644,23 @@
     checkboxRow: {
       display: 'flex', alignItems: 'center', gap: 10, marginTop: 16,
       fontSize: 14, fontWeight: 500, color: 'var(--om-ink)', cursor: 'pointer',
+    },
+    avatarBtn: {
+      position: 'relative', padding: 0, border: 'none', background: 'none',
+      borderRadius: '50%', cursor: 'pointer', flexShrink: 0, lineHeight: 0,
+    },
+    avatarCam: {
+      position: 'absolute', right: -2, bottom: -2,
+      width: 24, height: 24, borderRadius: '50%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--om-ink)', color: '#fff',
+      border: '2px solid var(--om-canvas-white)',
+    },
+    photoRemoveBtn: {
+      padding: '8px 12px', border: '1px solid var(--om-hairline)',
+      borderRadius: 'var(--om-radius-sm)', background: 'var(--om-canvas-white)',
+      color: 'var(--om-danger)', fontSize: 13, fontWeight: 500,
+      fontFamily: 'inherit', cursor: 'pointer',
     },
     deleteBtn: {
       marginRight: 'auto',

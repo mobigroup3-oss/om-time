@@ -154,44 +154,13 @@
           scrollTrigger: { trigger: '[data-animate="sched-filters"]', start: 'top 86%' }
         });
 
-        // Timeline axis — прочерчивается сверху вниз (по одной на месяц)
-        gsap.utils.toArray('[data-animate="sched-axis"]').forEach(function (axis) {
-          gsap.from(axis, {
-            scaleY: 0, transformOrigin: 'top center',
-            duration: 0.7, ease: 'power2.out',
-            scrollTrigger: { trigger: axis, start: 'top 85%' }
-          });
-        });
-
-        // Timeline nodes — «загораются» точки на оси
-        ScrollTrigger.batch('[data-animate="sched-node"]', {
-          start: 'top 90%',
-          onEnter: function (batch) {
-            gsap.from(batch, {
-              scale: 0, opacity: 0, duration: 0.45,
-              stagger: 0.08, ease: 'back.out(1.7)', clearProps: 'transform,opacity'
-            });
-          }
-        });
-
-        // Timeline date anchors
-        ScrollTrigger.batch('[data-animate="sched-anchor"]', {
-          start: 'top 90%',
-          onEnter: function (batch) {
-            gsap.from(batch, {
-              y: 16, opacity: 0, duration: 0.5,
-              stagger: 0.08, ease: 'power2.out', clearProps: 'all'
-            });
-          }
-        });
-
-        // Schedule items
+        // Schedule cards — мягкое появление снизу со stagger
         ScrollTrigger.batch('[data-animate="sched-item"]', {
-          start: 'top 88%',
+          start: 'top 90%',
           onEnter: function (batch) {
             gsap.from(batch, {
-              x: 32, opacity: 0, duration: 0.48,
-              stagger: 0.08, ease: 'power2.out', clearProps: 'all'
+              y: 28, opacity: 0, duration: 0.5,
+              stagger: 0.07, ease: 'power3.out', clearProps: 'all'
             });
           }
         });

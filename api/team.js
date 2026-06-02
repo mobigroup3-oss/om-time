@@ -12,6 +12,7 @@ function toCanonical(r) {
     roleLabel: r.role_label || '',
     tag: r.tag || '',
     tone: r.tone || 'lilac',
+    photo: r.photo || '',
     spec: r.spec || [],
     credentials: r.credentials || [],
     bio: r.bio || '',
@@ -58,6 +59,7 @@ export default async function handler(req, res) {
     roleLabel: b.roleLabel || '',
     tag: b.tag || '',
     tone: b.tone || 'lilac',
+    photo: b.photo || '',
     spec: Array.isArray(b.spec) ? b.spec : [],
     credentials: Array.isArray(b.credentials) ? b.credentials : [],
     bio: b.bio || '',
@@ -75,10 +77,10 @@ export default async function handler(req, res) {
     const id = b.id || genId();
     const ins = await sql`
       INSERT INTO team_members
-        (id, name, role_cat, role_label, tag, tone, spec, credentials, bio,
+        (id, name, role_cat, role_label, tag, tone, photo, spec, credentials, bio,
          years, years_label, sessions, sessions_label, featured, active, sort_order)
       VALUES
-        (${id}, ${v.name}, ${v.roleCat}, ${v.roleLabel}, ${v.tag}, ${v.tone}, ${v.spec}, ${v.credentials}, ${v.bio},
+        (${id}, ${v.name}, ${v.roleCat}, ${v.roleLabel}, ${v.tag}, ${v.tone}, ${v.photo}, ${v.spec}, ${v.credentials}, ${v.bio},
          ${v.years}, ${v.yearsLabel}, ${v.sessions}, ${v.sessionsLabel}, ${v.featured}, ${v.active}, ${v.sortOrder})
       RETURNING *`;
     return res.status(200).json({ ok: true, data: toCanonical(ins.rows[0]) });
@@ -88,7 +90,7 @@ export default async function handler(req, res) {
     if (!b.id) return res.status(400).json({ ok: false, error: 'Нужен id' });
     const upd = await sql`
       UPDATE team_members SET
-        name = ${v.name}, role_cat = ${v.roleCat}, role_label = ${v.roleLabel}, tag = ${v.tag}, tone = ${v.tone},
+        name = ${v.name}, role_cat = ${v.roleCat}, role_label = ${v.roleLabel}, tag = ${v.tag}, tone = ${v.tone}, photo = ${v.photo},
         spec = ${v.spec}, credentials = ${v.credentials}, bio = ${v.bio},
         years = ${v.years}, years_label = ${v.yearsLabel}, sessions = ${v.sessions}, sessions_label = ${v.sessionsLabel},
         featured = ${v.featured}, active = ${v.active}, sort_order = ${v.sortOrder}

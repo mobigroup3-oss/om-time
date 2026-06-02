@@ -624,7 +624,22 @@ const tm = {
   },
 };
 
-function TeamAvatar({ initials, bg, color, size = 72 }) {
+function TeamAvatar({ initials, bg, color, size = 72, photo }) {
+  if (photo) {
+    return (
+      <div style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        flexShrink: 0,
+        userSelect: 'none',
+        background: 'var(--om-canvas)',
+      }}>
+        <img src={photo} alt={initials} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      </div>
+    );
+  }
   return (
     <div style={{
       width: size,
@@ -655,7 +670,7 @@ function TeamFeaturedCard({ member: m }) {
 
       <div>
         <div style={tm.featAvatarRow}>
-          <TeamAvatar initials={m.initials} bg={m.avatarBg} color={m.avatarColor} size={80} />
+          <TeamAvatar initials={m.initials} bg={m.avatarBg} color={m.avatarColor} size={80} photo={m.photo} />
           <div style={tm.featInfo}>
             <span className={`om-tag ${m.tagClass}`} style={{ marginBottom: 6, display: 'inline-flex' }}>
               {m.tag}
@@ -713,7 +728,7 @@ function TeamCard({ member: m }) {
       }}
     >
       <div style={tm.cardTopRow}>
-        <TeamAvatar initials={m.initials} bg={m.avatarBg} color={m.avatarColor} size={60} />
+        <TeamAvatar initials={m.initials} bg={m.avatarBg} color={m.avatarColor} size={60} photo={m.photo} />
         <span className={`om-tag ${m.tagClass}`}>{m.tag}</span>
       </div>
       <h3 style={tm.cardName}>{m.name}</h3>
@@ -793,6 +808,7 @@ function teamFromApi(c) {
     sessionsLabel: c.sessionsLabel,
     avatarBg: av.avatarBg,
     avatarColor: av.avatarColor,
+    photo: c.photo || '',
     featured: c.featured,
   };
 }

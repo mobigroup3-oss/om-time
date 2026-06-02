@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS team_members (
   role_label     TEXT,
   tag            TEXT,
   tone           TEXT,                               -- gold | coral | sage | lilac
+  photo          TEXT,                               -- data-URL фото аватара (или пусто → инициалы)
   spec           TEXT[] NOT NULL DEFAULT '{}',
   credentials    TEXT[] NOT NULL DEFAULT '{}',
   bio            TEXT,
@@ -45,6 +46,8 @@ CREATE TABLE IF NOT EXISTS team_members (
   active         BOOLEAN NOT NULL DEFAULT true,      -- опубликован на сайте
   sort_order     INT NOT NULL DEFAULT 0
 );
+-- Миграция для уже созданной БД (CREATE TABLE IF NOT EXISTS не добавит колонку).
+ALTER TABLE team_members ADD COLUMN IF NOT EXISTS photo TEXT;
 
 -- ── Программы ──────────────────────────────────────────────
 -- localStorage('omtime.programs.v1') (AdminProgramsEditor).

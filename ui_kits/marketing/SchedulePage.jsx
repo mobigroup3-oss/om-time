@@ -371,52 +371,52 @@ const sp = {
   },
 
   toolbar: {
-    background: 'var(--om-canvas)',
-    border: '1px solid var(--om-hairline)',
-    borderRadius: 'var(--om-radius-lg)',
-    padding: '20px 24px',
+    background: 'var(--om-canvas-white)',
+    borderRadius: 'var(--om-radius-xl)',
+    padding: '6px 26px 18px',
     marginBottom: 40,
+    boxShadow: 'var(--om-shadow-card)',
     display: 'flex',
     flexDirection: 'column',
     gap: 0,
   },
   filterRow: {
-    display: 'flex', alignItems: 'flex-start', gap: 16,
+    display: 'flex', alignItems: 'center', gap: 16,
     padding: '14px 0',
     borderBottom: '1px solid var(--om-hairline-soft)',
   },
   filterRowLast: {
-    display: 'flex', alignItems: 'flex-start', gap: 16,
+    display: 'flex', alignItems: 'center', gap: 16,
     padding: '14px 0 0',
   },
   filterLabel: {
-    fontSize: 11, fontWeight: 500, letterSpacing: '0.12em',
-    textTransform: 'uppercase', color: 'var(--om-muted)',
-    minWidth: 88, flexShrink: 0, paddingTop: 8,
+    fontSize: 11, fontWeight: 600, letterSpacing: '0.14em',
+    textTransform: 'uppercase', color: 'var(--om-faint)',
+    minWidth: 84, flexShrink: 0,
   },
-  filterGroup: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 },
+  filterGroup: { display: 'flex', gap: 7, flexWrap: 'wrap', flex: 1 },
   toolbarFoot: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    gap: 12, paddingTop: 14, marginTop: 2,
+    gap: 12, paddingTop: 16,
   },
   resultsText: { fontSize: 13, color: 'var(--om-muted)' },
   clearBtn: {
-    padding: '6px 14px', borderRadius: 'var(--om-radius-pill)',
-    background: 'transparent', border: '1px solid var(--om-hairline)',
+    padding: '7px 15px', borderRadius: 'var(--om-radius-pill)',
+    background: 'var(--om-canvas-soft)', border: '1px solid transparent',
     fontSize: 12, fontWeight: 500, color: 'var(--om-muted)',
     cursor: 'pointer', fontFamily: 'inherit', transition: 'all 180ms ease',
     display: 'inline-flex', alignItems: 'center', gap: 5,
   },
   chip: {
-    padding: '7px 15px', borderRadius: 'var(--om-radius-pill)',
-    background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+    padding: '8px 16px', borderRadius: 'var(--om-radius-pill)',
+    background: 'var(--om-canvas-soft)', border: '1px solid transparent',
     fontSize: 13, fontWeight: 500, color: 'var(--om-body)',
     cursor: 'pointer', fontFamily: 'inherit', transition: 'all 180ms ease',
   },
   chipActive: { background: 'var(--om-ink)', color: '#fff', borderColor: 'var(--om-ink)' },
   chipMonth: {
-    padding: '7px 15px', borderRadius: 'var(--om-radius-pill)',
-    background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+    padding: '8px 16px', borderRadius: 'var(--om-radius-pill)',
+    background: 'var(--om-canvas-soft)', border: '1px solid transparent',
     fontSize: 13, fontWeight: 500, color: 'var(--om-body)',
     cursor: 'pointer', fontFamily: 'inherit', transition: 'all 180ms ease',
   },
@@ -433,89 +433,66 @@ const sp = {
   },
   monthCount: { fontFamily: 'var(--om-font-mono)', fontSize: 12, color: 'var(--om-muted)', opacity: 0.65 },
 
-  /* ── Timeline lane ──────────────────────────────────────────────────── */
-  tlWrap: { position: 'relative' },
-  // Непрерывная вертикальная ось. left = ширина якоря + центр рельса (23px).
-  // На мобиле прячется через .om-tl-axis (page.css).
-  tlAxis: {
-    position: 'absolute', top: 8, bottom: 8,
-    left: 'calc(clamp(54px, 6vw, 82px) + 22px)',
-    width: 2, transformOrigin: 'top center', pointerEvents: 'none', zIndex: 0,
-    background: 'linear-gradient(180deg, transparent 0%, var(--om-hairline) 6%, var(--om-hairline) 90%, transparent 100%)',
-  },
-  tlRow: {
-    display: 'grid',
-    gridTemplateColumns: 'clamp(54px, 6vw, 82px) 46px minmax(0, 1fr)',
-    alignItems: 'start', paddingBottom: 14, position: 'relative',
+  list: {
+    display: 'grid', gap: 16, alignItems: 'stretch',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 440px), 1fr))',
   },
 
-  tlAnchor: {
-    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-    paddingTop: 22, textAlign: 'right', lineHeight: 1, userSelect: 'none',
-  },
-  tlAnchorKicker: {
-    fontSize: 10, fontWeight: 600, letterSpacing: '0.16em',
-    textTransform: 'uppercase', color: 'var(--om-muted)', marginBottom: 7,
-  },
-  tlDay: {
-    fontFamily: 'var(--om-font-mono)', fontWeight: 500,
-    fontSize: 'clamp(30px, 3.4vw, 42px)', color: 'var(--om-ink)',
-    letterSpacing: '-0.02em', fontStyle: 'normal',
-  },
-  tlDayEnd: {
-    fontFamily: 'var(--om-font-mono)', fontSize: 15, fontWeight: 500,
-    color: 'var(--om-muted)', marginTop: 3, fontStyle: 'normal',
-  },
-
-  tlRail: { position: 'relative', alignSelf: 'stretch' },
-  // Узел не центрируется через translate — иначе GSAP scale затирает transform.
-  // left:12 = (рельс 46 − узел 22)/2, что совпадает с осью.
-  tlNode: {
-    position: 'absolute', top: 26, left: 12,
-    width: 22, height: 22, borderRadius: '50%',
-    background: 'var(--om-canvas-white)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 2,
-  },
-
-  list: { display: 'grid', gap: 14 },
-
+  /* ── Event card (сетка карточек 2-в-ряд) ────────────────────────────── */
   card: {
-    position: 'relative', overflow: 'hidden',
-    background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline-soft)',
-    borderRadius: 'var(--om-radius-xl)', padding: '26px 32px 26px 36px',
-    display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto',
-    gap: 28, alignItems: 'center',
+    position: 'relative', overflow: 'hidden', height: '100%',
+    display: 'flex', flexDirection: 'column',
+    background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+    borderRadius: 'var(--om-radius-lg)',
     boxShadow: 'var(--om-shadow-card)',
-    transition: 'transform 0.3s cubic-bezier(0,0,0.2,1), box-shadow 0.3s cubic-bezier(0,0,0.2,1)',
+    transition: 'transform 0.28s cubic-bezier(0,0,0.2,1), box-shadow 0.28s cubic-bezier(0,0,0.2,1)',
   },
   cardFeatured: {
-    background: 'linear-gradient(165deg, rgba(250,231,168,0.5) 0%, var(--om-canvas-white) 55%)',
+    background: 'linear-gradient(160deg, rgba(250,231,168,0.5) 0%, var(--om-canvas-white) 48%)',
     border: '1px solid var(--om-gold)',
-    boxShadow: '0 2px 4px rgba(27,24,64,0.05), 0 16px 40px rgba(242,193,46,0.14)',
   },
-  // Цветной «корешок» программы + мягкий боковой тинт задаются inline по акценту.
-  cardEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6 },
 
-  cardBody:    { display: 'flex', flexDirection: 'column', gap: 10 },
+  // Дата-бэнд сверху: крупный день/диапазон в цвете акцента + месяц словом.
+  dateBand: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '16px 22px 14px',
+  },
+  dateBig: {
+    fontFamily: 'var(--om-font-mono)', fontWeight: 600, fontSize: 30,
+    lineHeight: 1, letterSpacing: '-0.02em', fontStyle: 'normal', flexShrink: 0,
+  },
+  dateMonthWrap: { display: 'flex', flexDirection: 'column', gap: 3, lineHeight: 1, minWidth: 0 },
+  dateMonthName: {
+    fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
+    color: 'var(--om-ink)', textTransform: 'lowercase', whiteSpace: 'nowrap',
+  },
+  dateKicker: {
+    fontSize: 10, fontWeight: 600, letterSpacing: '0.16em',
+    textTransform: 'uppercase', color: 'var(--om-muted)',
+  },
+
+  cardBody:    { display: 'flex', flexDirection: 'column', gap: 9, padding: '4px 22px 16px', flex: 1 },
   cardTags:    { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  cardTitle:   { fontSize: 20, fontWeight: 500, color: 'var(--om-ink)', margin: 0, lineHeight: 1.3, letterSpacing: '-0.01em' },
-  cardMeta:    { display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 15, color: 'var(--om-muted)' },
-  cardMetaItem:{ display: 'inline-flex', alignItems: 'center', gap: 6 },
-  cardCapacityRow: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 },
-  cardCapacityBar: { height: 4, borderRadius: 2, background: 'var(--om-hairline)', overflow: 'hidden', width: 80 },
+  cardTitle:   { fontSize: 19, fontWeight: 500, color: 'var(--om-ink)', margin: 0, lineHeight: 1.3, letterSpacing: '-0.01em' },
+  cardMeta:    { display: 'flex', flexDirection: 'column', gap: 7, fontSize: 14, color: 'var(--om-muted)' },
+  cardMetaItem:{ display: 'inline-flex', alignItems: 'center', gap: 8 },
+  cardCapacityRow: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 },
+  cardCapacityBar: { height: 4, borderRadius: 2, background: 'var(--om-hairline)', overflow: 'hidden', flex: 1, maxWidth: 160 },
   cardCapacityFill: { height: '100%', borderRadius: 2, transition: 'width 0.4s ease' },
-  cardCapacityText: { fontSize: 13, color: 'var(--om-muted)' },
+  cardCapacityText: { fontSize: 13, color: 'var(--om-muted)', whiteSpace: 'nowrap' },
 
   cardWarn: { fontSize: 13, color: 'var(--om-warning)', display: 'inline-flex', alignItems: 'center', gap: 4 },
   cardNew:  { fontSize: 13, color: 'var(--om-sage-deep)', display: 'inline-flex', alignItems: 'center', gap: 4 },
 
-  cardRight:    {
-    display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12,
-    flexShrink: 0, minWidth: 150,
+  // Нижний action-bar: цена слева, кнопка справа, отделён волоском.
+  cardFoot: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 14, padding: '14px 22px', borderTop: '1px solid var(--om-hairline)',
+    marginTop: 'auto',
   },
-  cardPrice:    { fontFamily: 'var(--om-font-mono)', fontSize: 26, fontWeight: 500, color: 'var(--om-ink)', textAlign: 'right', whiteSpace: 'nowrap', letterSpacing: '-0.01em' },
-  cardPriceNote:{ fontSize: 13, color: 'var(--om-sage-deep)', textAlign: 'right', maxWidth: 200, lineHeight: 1.4 },
+  footPrice:    { display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 },
+  cardPrice:    { fontFamily: 'var(--om-font-mono)', fontSize: 22, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap', letterSpacing: '-0.01em', fontStyle: 'normal' },
+  cardPriceNote:{ fontSize: 12, color: 'var(--om-sage-deep)', lineHeight: 1.4 },
 
   waitlistCard: {
     background: 'var(--om-canvas-soft)', border: '1px dashed var(--om-hairline)',
@@ -551,40 +528,36 @@ function pluralRu(n, one, few, many) {
   return many;
 }
 
-// Дата-якорь для timeline: вытаскиваем первое число (день) и, если это
-// диапазон («4–7 ноября») — конечный день. «старт 12 ноября» → kicker «старт».
+// Дата-якорь для бэнда карточки: число (или диапазон) + месяц словом.
+// Устойчив к обоим написаниям диапазона:
+//   «4–7 ноября»      → {day:'4',  dayEnd:'7', month:'ноября'}
+//   «2 мая – 5 мая»   → {day:'2',  dayEnd:'5', month:'мая'}
+//   «старт 12 ноября» → {day:'12',             month:'ноября', isStart:true}
 function parseDayAnchor(dates) {
   const s = String(dates || '');
   const isStart = /старт/i.test(s);
-  const m = s.match(/(\d{1,2})\s*(?:[–—-]\s*(\d{1,2}))?/);
+  const days = s.match(/\d{1,2}/g) || [];
+  const months = s.match(/[а-яё]{3,}/gi) || [];
+  const isRange = /[–—-]/.test(s) && days.length >= 2;
   return {
-    day: m ? m[1].padStart(2, '0') : null,
-    dayEnd: (m && m[2]) ? m[2].padStart(2, '0') : null,
+    day: days[0] || null,
+    dayEnd: isRange ? (days[1] || null) : null,
+    month: months.length ? months[months.length - 1].toLowerCase() : '',
     isStart,
   };
 }
 
-// Цвет акцента узла/грани по тегу программы (тот же язык, что у .om-tag--*).
+// Цвет акцента дата-плашки по тегу программы (тот же язык, что у .om-tag--*).
+// tint — мягкая заливка плашки, solid — насыщенный цвет для подписи дня.
 const SCHED_ACCENTS = {
-  gold:  { solid: 'var(--om-gold)',      glow: 'rgba(242,193,46,0.32)' },
-  sage:  { solid: 'var(--om-sage-deep)', glow: 'rgba(78,107,63,0.22)'  },
-  coral: { solid: 'var(--om-coral)',     glow: 'rgba(192,58,59,0.22)'  },
-  lilac: { solid: 'var(--om-indigo)',    glow: 'rgba(46,36,112,0.18)'  },
+  gold:  { solid: 'var(--om-gold-deep)',  tint: 'rgba(242,193,46,0.16)' },
+  sage:  { solid: 'var(--om-sage-deep)',  tint: 'rgba(78,107,63,0.12)'  },
+  coral: { solid: 'var(--om-coral)',      tint: 'rgba(192,58,59,0.10)'  },
+  lilac: { solid: 'var(--om-indigo)',     tint: 'rgba(46,36,112,0.10)'  },
 };
 function accentOf(ev) {
   const key = String(ev.tagClass || '').replace('om-tag--', '');
   return SCHED_ACCENTS[key] || SCHED_ACCENTS.lilac;
-}
-
-// Иконка категории внутри узла-точки на оси.
-const SCHED_ICONS = {
-  flagship: 'gem',
-  club:     'users-round',
-  detox:    'leaf',
-  teen:     'graduation-cap',
-};
-function iconOf(ev) {
-  return SCHED_ICONS[ev.category] || (ev.format === 'online' ? 'monitor' : 'calendar-days');
 }
 
 /* ── SchedEventCard ──────────────────────────────────────────────────────── */
@@ -599,94 +572,71 @@ function SchedEventCard({ event: ev }) {
 
   const a = accentOf(ev);
   const anchor = parseDayAnchor(ev.dates);
+  const dayText = anchor.day
+    ? (anchor.dayEnd ? `${anchor.day}–${anchor.dayEnd}` : anchor.day)
+    : '—';
 
   const cardStyle = {
     ...sp.card,
-    ...(ev.featured
-      ? sp.cardFeatured
-      : { background: `linear-gradient(90deg, ${a.glow} 0%, var(--om-canvas-white) 18%)` }),
+    ...(ev.featured ? sp.cardFeatured : {}),
   };
 
   return (
-   <div className="om-tl-row" style={sp.tlRow} data-animate="sched-row">
-
-    {/* Дата-якорь */}
-    <div className="om-tl-anchor" style={sp.tlAnchor} data-animate="sched-anchor">
-      {(anchor.isStart || !anchor.day) && (
-        <span style={sp.tlAnchorKicker}>{anchor.day ? 'старт' : '—'}</span>
-      )}
-      {anchor.day && <span style={sp.tlDay}>{anchor.day}</span>}
-      {anchor.dayEnd && <span style={sp.tlDayEnd}>–{anchor.dayEnd}</span>}
-    </div>
-
-    {/* Узел на оси */}
-    <div className="om-tl-rail" style={sp.tlRail}>
-      <span
-        data-animate="sched-node"
-        style={{
-          ...sp.tlNode,
-          border: `2px solid ${a.solid}`,
-          boxShadow: ev.featured
-            ? `0 0 0 4px var(--om-canvas-white), 0 0 16px ${a.glow}`
-            : '0 0 0 4px var(--om-canvas-white)',
-        }}
-      >
-        <i data-lucide={iconOf(ev)} style={{ width: 12, height: 12, color: a.solid }}></i>
-      </span>
-    </div>
-
-    {/* Карточка события */}
     <div
-      className="om-resp-card-row"
+      className="om-evt-card"
       style={cardStyle}
       data-animate="sched-item"
       onMouseEnter={e => {
         e.currentTarget.style.transform = 'translateY(-4px)';
         e.currentTarget.style.boxShadow = ev.featured
-          ? `0 20px 46px rgba(242,193,46,0.22), 0 0 0 1px rgba(242,193,46,0.4)`
-          : `var(--om-shadow-lifted), 0 0 0 1px ${a.glow}`;
+          ? '0 18px 42px rgba(242,193,46,0.20), 0 0 0 1px rgba(242,193,46,0.4)'
+          : 'var(--om-shadow-lifted)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.transform = '';
-        e.currentTarget.style.boxShadow = ev.featured
-          ? '0 2px 4px rgba(27,24,64,0.05), 0 16px 40px rgba(242,193,46,0.14)'
-          : 'var(--om-shadow-card)';
+        e.currentTarget.style.boxShadow = 'var(--om-shadow-card)';
       }}
     >
-      <span style={{ ...sp.cardEdge, background: a.solid }}></span>
+      {/* Дата-бэнд */}
+      <div style={{ ...sp.dateBand, background: a.tint }}>
+        <span style={{ ...sp.dateBig, color: a.solid }}>{dayText}</span>
+        <span style={sp.dateMonthWrap}>
+          <span style={sp.dateMonthName}>{anchor.month}</span>
+          {anchor.isStart && <span style={sp.dateKicker}>старт</span>}
+        </span>
+        <span className={`om-tag ${ev.tagClass}`} style={{ marginLeft: 'auto' }}>{ev.tag}</span>
+      </div>
+
       <div style={sp.cardBody}>
-        <div style={sp.cardTags}>
-          <span className={`om-tag ${ev.tagClass}`}>{ev.tag}</span>
-          {ev.isNew && (
-            <span style={sp.cardNew}>
-              <i data-lucide="sparkles" style={{ width: 12, height: 12 }}></i>
-              Новые даты
-            </span>
-          )}
-          {spotsLow && !soldOut && (
-            <span style={sp.cardWarn}>
-              <i data-lucide="alert-circle" style={{ width: 12, height: 12 }}></i>
-              {`осталось ${ev.capacity} ${pluralRu(ev.capacity, 'место', 'места', 'мест')}`}
-            </span>
-          )}
-          {soldOut && (
-            <span style={{ ...sp.cardWarn, color: 'var(--om-muted)' }}>
-              <i data-lucide="lock" style={{ width: 12, height: 12 }}></i>
-              набор закрыт
-            </span>
-          )}
-        </div>
+        {(ev.isNew || (spotsLow && !soldOut) || soldOut) && (
+          <div style={sp.cardTags}>
+            {ev.isNew && (
+              <span style={sp.cardNew}>
+                <i data-lucide="sparkles" style={{ width: 12, height: 12 }}></i>
+                Новые даты
+              </span>
+            )}
+            {spotsLow && !soldOut && (
+              <span style={sp.cardWarn}>
+                <i data-lucide="alert-circle" style={{ width: 12, height: 12 }}></i>
+                {`осталось ${ev.capacity} ${pluralRu(ev.capacity, 'место', 'места', 'мест')}`}
+              </span>
+            )}
+            {soldOut && (
+              <span style={{ ...sp.cardWarn, color: 'var(--om-muted)' }}>
+                <i data-lucide="lock" style={{ width: 12, height: 12 }}></i>
+                набор закрыт
+              </span>
+            )}
+          </div>
+        )}
 
         <h3 style={sp.cardTitle}>{ev.title}</h3>
 
         <div style={sp.cardMeta}>
           <span style={sp.cardMetaItem}>
-            <i data-lucide="calendar-days" style={{ width: 14, height: 14 }}></i>
-            {ev.dates}
-          </span>
-          <span style={sp.cardMetaItem}>
             <i data-lucide="clock" style={{ width: 14, height: 14 }}></i>
-            {ev.time}
+            {ev.time}{ev.duration ? ` · ${ev.duration}` : ''}
           </span>
           <span style={sp.cardMetaItem}>
             <i data-lucide="user-round" style={{ width: 14, height: 14 }}></i>
@@ -696,12 +646,6 @@ function SchedEventCard({ event: ev }) {
             <i data-lucide={isOnline ? 'monitor' : 'map-pin'} style={{ width: 14, height: 14 }}></i>
             {ev.formatLabel}
           </span>
-          {ev.duration && (
-            <span style={sp.cardMetaItem}>
-              <i data-lucide="timer" style={{ width: 14, height: 14 }}></i>
-              {ev.duration}
-            </span>
-          )}
         </div>
 
         {fillPct !== null && (
@@ -720,9 +664,11 @@ function SchedEventCard({ event: ev }) {
         )}
       </div>
 
-      <div className="om-resp-card-aside" style={sp.cardRight}>
-        <div style={sp.cardPrice}>{ev.price}</div>
-        {ev.priceNote && <div style={sp.cardPriceNote}>{ev.priceNote}</div>}
+      <div className="om-evt-foot" style={sp.cardFoot}>
+        <span style={sp.footPrice}>
+          <span style={sp.cardPrice}>{ev.price}</span>
+          {ev.priceNote && <span style={sp.cardPriceNote}>{ev.priceNote}</span>}
+        </span>
         {soldOut ? (
           <button
             className="om-btn om-btn--secondary"
@@ -739,15 +685,13 @@ function SchedEventCard({ event: ev }) {
                 ? (ev.format === 'online' ? 'flagship-online' : 'flagship-offline')
                 : ev.category
             }`}
-            style={{ fontSize: 13, padding: '10px 18px', textDecoration: 'none' }}
+            style={{ fontSize: 13, padding: '10px 18px', textDecoration: 'none', flexShrink: 0 }}
           >
             Записаться
           </a>
         )}
       </div>
     </div>
-
-   </div>
   );
 }
 
@@ -948,8 +892,7 @@ function SchedulePage() {
                     <span style={sp.monthLabel}>{monthLabel}</span>
                     <span style={sp.monthCount}>{countLabel}</span>
                   </div>
-                  <div className="om-tl-wrap" style={sp.tlWrap}>
-                    <span className="om-tl-axis" style={sp.tlAxis} data-animate="sched-axis"></span>
+                  <div style={sp.list}>
                     {events.map(ev => (
                       <SchedEventCard key={ev.id} event={ev} />
                     ))}
