@@ -469,32 +469,33 @@ const sp = {
 
   tlRail: { position: 'relative', alignSelf: 'stretch' },
   // Узел не центрируется через translate — иначе GSAP scale затирает transform.
-  // left:15 = (рельс 46 − узел 16)/2, что совпадает с осью.
+  // left:12 = (рельс 46 − узел 22)/2, что совпадает с осью.
   tlNode: {
-    position: 'absolute', top: 28, left: 15,
-    width: 16, height: 16, borderRadius: '50%',
+    position: 'absolute', top: 26, left: 12,
+    width: 22, height: 22, borderRadius: '50%',
     background: 'var(--om-canvas-white)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     zIndex: 2,
   },
-  tlNodeDot: { width: 7, height: 7, borderRadius: '50%' },
 
-  list: { display: 'grid', gap: 12 },
+  list: { display: 'grid', gap: 14 },
 
   card: {
     position: 'relative', overflow: 'hidden',
-    background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
-    borderRadius: 'var(--om-radius-lg)', padding: '24px 30px 24px 32px',
+    background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline-soft)',
+    borderRadius: 'var(--om-radius-xl)', padding: '26px 32px 26px 36px',
     display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto',
     gap: 28, alignItems: 'center',
+    boxShadow: 'var(--om-shadow-card)',
     transition: 'transform 0.3s cubic-bezier(0,0,0.2,1), box-shadow 0.3s cubic-bezier(0,0,0.2,1)',
   },
   cardFeatured: {
-    background: 'linear-gradient(170deg, rgba(250,231,168,0.38) 0%, var(--om-canvas-white) 58%)',
+    background: 'linear-gradient(165deg, rgba(250,231,168,0.5) 0%, var(--om-canvas-white) 55%)',
     border: '1px solid var(--om-gold)',
-    boxShadow: '0 0 0 1px rgba(242,193,46,0.25)',
+    boxShadow: '0 2px 4px rgba(27,24,64,0.05), 0 16px 40px rgba(242,193,46,0.14)',
   },
-  cardEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  // Цветной «корешок» программы + мягкий боковой тинт задаются inline по акценту.
+  cardEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6 },
 
   cardBody:    { display: 'flex', flexDirection: 'column', gap: 10 },
   cardTags:    { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
@@ -575,6 +576,17 @@ function accentOf(ev) {
   return SCHED_ACCENTS[key] || SCHED_ACCENTS.lilac;
 }
 
+// Иконка категории внутри узла-точки на оси.
+const SCHED_ICONS = {
+  flagship: 'gem',
+  club:     'users-round',
+  detox:    'leaf',
+  teen:     'graduation-cap',
+};
+function iconOf(ev) {
+  return SCHED_ICONS[ev.category] || (ev.format === 'online' ? 'monitor' : 'calendar-days');
+}
+
 /* ── SchedEventCard ──────────────────────────────────────────────────────── */
 
 function SchedEventCard({ event: ev }) {
@@ -590,7 +602,9 @@ function SchedEventCard({ event: ev }) {
 
   const cardStyle = {
     ...sp.card,
-    ...(ev.featured ? sp.cardFeatured : {}),
+    ...(ev.featured
+      ? sp.cardFeatured
+      : { background: `linear-gradient(90deg, ${a.glow} 0%, var(--om-canvas-white) 18%)` }),
   };
 
   return (
@@ -613,11 +627,11 @@ function SchedEventCard({ event: ev }) {
           ...sp.tlNode,
           border: `2px solid ${a.solid}`,
           boxShadow: ev.featured
-            ? `0 0 0 4px var(--om-canvas-white), 0 0 14px ${a.glow}`
+            ? `0 0 0 4px var(--om-canvas-white), 0 0 16px ${a.glow}`
             : '0 0 0 4px var(--om-canvas-white)',
         }}
       >
-        <span style={{ ...sp.tlNodeDot, background: a.solid }}></span>
+        <i data-lucide={iconOf(ev)} style={{ width: 12, height: 12, color: a.solid }}></i>
       </span>
     </div>
 
@@ -629,12 +643,14 @@ function SchedEventCard({ event: ev }) {
       onMouseEnter={e => {
         e.currentTarget.style.transform = 'translateY(-4px)';
         e.currentTarget.style.boxShadow = ev.featured
-          ? `0 16px 38px rgba(27,24,64,0.12), 0 0 0 1px rgba(242,193,46,0.4)`
-          : `0 16px 38px rgba(27,24,64,0.10), 0 0 0 1px ${a.glow}`;
+          ? `0 20px 46px rgba(242,193,46,0.22), 0 0 0 1px rgba(242,193,46,0.4)`
+          : `var(--om-shadow-lifted), 0 0 0 1px ${a.glow}`;
       }}
       onMouseLeave={e => {
         e.currentTarget.style.transform = '';
-        e.currentTarget.style.boxShadow = ev.featured ? '0 0 0 1px rgba(242,193,46,0.25)' : '';
+        e.currentTarget.style.boxShadow = ev.featured
+          ? '0 2px 4px rgba(27,24,64,0.05), 0 16px 40px rgba(242,193,46,0.14)'
+          : 'var(--om-shadow-card)';
       }}
     >
       <span style={{ ...sp.cardEdge, background: a.solid }}></span>
