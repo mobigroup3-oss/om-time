@@ -3004,6 +3004,19 @@ html:not(.om-anim-ready) [data-animate] {
   }
 }
 
+/* ── Schedule timeline lane ──────────────────────────────────────── */
+/* На узких экранах ось/якорь/рельс убираем — остаётся стопка карточек
+   (дата всё равно дублируется в мете карточки). */
+@media (max-width: 640px) {
+  .om-tl-row { grid-template-columns: 1fr !important; }
+  .om-tl-anchor,
+  .om-tl-rail,
+  .om-tl-axis { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .om-tl-axis { transform: none !important; }
+}
+
 /* ── About page — targets existing classNames in AboutPage.jsx ────── */
 @media (max-width: 860px) {
   .om-about-mission-inner,

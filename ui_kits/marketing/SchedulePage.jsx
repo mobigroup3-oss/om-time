@@ -433,23 +433,72 @@ const sp = {
   },
   monthCount: { fontFamily: 'var(--om-font-mono)', fontSize: 12, color: 'var(--om-muted)', opacity: 0.65 },
 
+  /* ── Timeline lane ──────────────────────────────────────────────────── */
+  tlWrap: { position: 'relative' },
+  // Непрерывная вертикальная ось. left = ширина якоря + центр рельса (23px).
+  // На мобиле прячется через .om-tl-axis (page.css).
+  tlAxis: {
+    position: 'absolute', top: 8, bottom: 8,
+    left: 'calc(clamp(54px, 6vw, 82px) + 22px)',
+    width: 2, transformOrigin: 'top center', pointerEvents: 'none', zIndex: 0,
+    background: 'linear-gradient(180deg, transparent 0%, var(--om-hairline) 6%, var(--om-hairline) 90%, transparent 100%)',
+  },
+  tlRow: {
+    display: 'grid',
+    gridTemplateColumns: 'clamp(54px, 6vw, 82px) 46px minmax(0, 1fr)',
+    alignItems: 'start', paddingBottom: 14, position: 'relative',
+  },
+
+  tlAnchor: {
+    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+    paddingTop: 22, textAlign: 'right', lineHeight: 1, userSelect: 'none',
+  },
+  tlAnchorKicker: {
+    fontSize: 10, fontWeight: 600, letterSpacing: '0.16em',
+    textTransform: 'uppercase', color: 'var(--om-muted)', marginBottom: 7,
+  },
+  tlDay: {
+    fontFamily: 'var(--om-font-mono)', fontWeight: 500,
+    fontSize: 'clamp(30px, 3.4vw, 42px)', color: 'var(--om-ink)',
+    letterSpacing: '-0.02em', fontStyle: 'normal',
+  },
+  tlDayEnd: {
+    fontFamily: 'var(--om-font-mono)', fontSize: 15, fontWeight: 500,
+    color: 'var(--om-muted)', marginTop: 3, fontStyle: 'normal',
+  },
+
+  tlRail: { position: 'relative', alignSelf: 'stretch' },
+  // Узел не центрируется через translate — иначе GSAP scale затирает transform.
+  // left:15 = (рельс 46 − узел 16)/2, что совпадает с осью.
+  tlNode: {
+    position: 'absolute', top: 28, left: 15,
+    width: 16, height: 16, borderRadius: '50%',
+    background: 'var(--om-canvas-white)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 2,
+  },
+  tlNodeDot: { width: 7, height: 7, borderRadius: '50%' },
+
   list: { display: 'grid', gap: 12 },
 
   card: {
+    position: 'relative', overflow: 'hidden',
     background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
-    borderRadius: 'var(--om-radius-lg)', padding: '28px 40px',
+    borderRadius: 'var(--om-radius-lg)', padding: '24px 30px 24px 32px',
     display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto',
-    gap: 32, alignItems: 'center',
-    transition: 'transform 0.28s cubic-bezier(0,0,0.2,1), box-shadow 0.28s cubic-bezier(0,0,0.2,1)',
+    gap: 28, alignItems: 'center',
+    transition: 'transform 0.3s cubic-bezier(0,0,0.2,1), box-shadow 0.3s cubic-bezier(0,0,0.2,1)',
   },
   cardFeatured: {
-    background: 'var(--om-canvas)', border: '1px solid var(--om-gold)',
-    boxShadow: '0 0 0 1px rgba(242,193,46,0.3)',
+    background: 'linear-gradient(170deg, rgba(250,231,168,0.38) 0%, var(--om-canvas-white) 58%)',
+    border: '1px solid var(--om-gold)',
+    boxShadow: '0 0 0 1px rgba(242,193,46,0.25)',
   },
+  cardEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
 
   cardBody:    { display: 'flex', flexDirection: 'column', gap: 10 },
   cardTags:    { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  cardTitle:   { fontSize: 19, fontWeight: 500, color: 'var(--om-ink)', margin: 0, lineHeight: 1.3 },
+  cardTitle:   { fontSize: 20, fontWeight: 500, color: 'var(--om-ink)', margin: 0, lineHeight: 1.3, letterSpacing: '-0.01em' },
   cardMeta:    { display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 15, color: 'var(--om-muted)' },
   cardMetaItem:{ display: 'inline-flex', alignItems: 'center', gap: 6 },
   cardCapacityRow: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 },
@@ -462,10 +511,9 @@ const sp = {
 
   cardRight:    {
     display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12,
-    flexShrink: 0, minWidth: 200,
-    borderLeft: '1px solid var(--om-hairline)', paddingLeft: 32,
+    flexShrink: 0, minWidth: 150,
   },
-  cardPrice:    { fontFamily: 'var(--om-font-mono)', fontSize: 24, fontWeight: 500, color: 'var(--om-ink)', textAlign: 'right', whiteSpace: 'nowrap' },
+  cardPrice:    { fontFamily: 'var(--om-font-mono)', fontSize: 26, fontWeight: 500, color: 'var(--om-ink)', textAlign: 'right', whiteSpace: 'nowrap', letterSpacing: '-0.01em' },
   cardPriceNote:{ fontSize: 13, color: 'var(--om-sage-deep)', textAlign: 'right', maxWidth: 200, lineHeight: 1.4 },
 
   waitlistCard: {
@@ -502,6 +550,31 @@ function pluralRu(n, one, few, many) {
   return many;
 }
 
+// Дата-якорь для timeline: вытаскиваем первое число (день) и, если это
+// диапазон («4–7 ноября») — конечный день. «старт 12 ноября» → kicker «старт».
+function parseDayAnchor(dates) {
+  const s = String(dates || '');
+  const isStart = /старт/i.test(s);
+  const m = s.match(/(\d{1,2})\s*(?:[–—-]\s*(\d{1,2}))?/);
+  return {
+    day: m ? m[1].padStart(2, '0') : null,
+    dayEnd: (m && m[2]) ? m[2].padStart(2, '0') : null,
+    isStart,
+  };
+}
+
+// Цвет акцента узла/грани по тегу программы (тот же язык, что у .om-tag--*).
+const SCHED_ACCENTS = {
+  gold:  { solid: 'var(--om-gold)',      glow: 'rgba(242,193,46,0.32)' },
+  sage:  { solid: 'var(--om-sage-deep)', glow: 'rgba(78,107,63,0.22)'  },
+  coral: { solid: 'var(--om-coral)',     glow: 'rgba(192,58,59,0.22)'  },
+  lilac: { solid: 'var(--om-indigo)',    glow: 'rgba(46,36,112,0.18)'  },
+};
+function accentOf(ev) {
+  const key = String(ev.tagClass || '').replace('om-tag--', '');
+  return SCHED_ACCENTS[key] || SCHED_ACCENTS.lilac;
+}
+
 /* ── SchedEventCard ──────────────────────────────────────────────────────── */
 
 function SchedEventCard({ event: ev }) {
@@ -512,27 +585,59 @@ function SchedEventCard({ event: ev }) {
   const spotsLow = ev.capacity !== null && ev.capacity <= 3 && ev.capacity > 0;
   const soldOut  = ev.capacity === 0;
 
+  const a = accentOf(ev);
+  const anchor = parseDayAnchor(ev.dates);
+
   const cardStyle = {
     ...sp.card,
     ...(ev.featured ? sp.cardFeatured : {}),
   };
 
   return (
+   <div className="om-tl-row" style={sp.tlRow} data-animate="sched-row">
+
+    {/* Дата-якорь */}
+    <div className="om-tl-anchor" style={sp.tlAnchor} data-animate="sched-anchor">
+      {(anchor.isStart || !anchor.day) && (
+        <span style={sp.tlAnchorKicker}>{anchor.day ? 'старт' : '—'}</span>
+      )}
+      {anchor.day && <span style={sp.tlDay}>{anchor.day}</span>}
+      {anchor.dayEnd && <span style={sp.tlDayEnd}>–{anchor.dayEnd}</span>}
+    </div>
+
+    {/* Узел на оси */}
+    <div className="om-tl-rail" style={sp.tlRail}>
+      <span
+        data-animate="sched-node"
+        style={{
+          ...sp.tlNode,
+          border: `2px solid ${a.solid}`,
+          boxShadow: ev.featured
+            ? `0 0 0 4px var(--om-canvas-white), 0 0 14px ${a.glow}`
+            : '0 0 0 4px var(--om-canvas-white)',
+        }}
+      >
+        <span style={{ ...sp.tlNodeDot, background: a.solid }}></span>
+      </span>
+    </div>
+
+    {/* Карточка события */}
     <div
       className="om-resp-card-row"
       style={cardStyle}
       data-animate="sched-item"
       onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-3px)';
+        e.currentTarget.style.transform = 'translateY(-4px)';
         e.currentTarget.style.boxShadow = ev.featured
-          ? '0 12px 32px rgba(27,24,64,0.10), 0 0 0 1px rgba(242,193,46,0.4)'
-          : '0 12px 32px rgba(27,24,64,0.10)';
+          ? `0 16px 38px rgba(27,24,64,0.12), 0 0 0 1px rgba(242,193,46,0.4)`
+          : `0 16px 38px rgba(27,24,64,0.10), 0 0 0 1px ${a.glow}`;
       }}
       onMouseLeave={e => {
         e.currentTarget.style.transform = '';
-        e.currentTarget.style.boxShadow = ev.featured ? '0 0 0 1px rgba(242,193,46,0.3)' : '';
+        e.currentTarget.style.boxShadow = ev.featured ? '0 0 0 1px rgba(242,193,46,0.25)' : '';
       }}
     >
+      <span style={{ ...sp.cardEdge, background: a.solid }}></span>
       <div style={sp.cardBody}>
         <div style={sp.cardTags}>
           <span className={`om-tag ${ev.tagClass}`}>{ev.tag}</span>
@@ -625,6 +730,8 @@ function SchedEventCard({ event: ev }) {
         )}
       </div>
     </div>
+
+   </div>
   );
 }
 
@@ -825,7 +932,8 @@ function SchedulePage() {
                     <span style={sp.monthLabel}>{monthLabel}</span>
                     <span style={sp.monthCount}>{countLabel}</span>
                   </div>
-                  <div style={sp.list}>
+                  <div className="om-tl-wrap" style={sp.tlWrap}>
+                    <span className="om-tl-axis" style={sp.tlAxis} data-animate="sched-axis"></span>
                     {events.map(ev => (
                       <SchedEventCard key={ev.id} event={ev} />
                     ))}
