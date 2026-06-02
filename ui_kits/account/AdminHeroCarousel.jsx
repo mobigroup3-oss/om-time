@@ -35,6 +35,30 @@ function carouselWrite(list) {
   } catch (e) {}
 }
 
+// Сжатие в браузере: ресайз до maxW по ширине + экспорт в WebP q80.
+// Возвращает data:image/webp;base64,… — то, что ждёт /api/upload. Никакого Pillow.
+function compressToWebp(file, maxW) {
+  return new Promise(function (resolve, reject) {
+    var objUrl = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      URL.revokeObjectURL(objUrl);
+      var scale = Math.min(1, maxW / img.width);
+      var w = Math.max(1, Math.round(img.width * scale));
+      var h = Math.max(1, Math.round(img.height * scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      var dataUrl = canvas.toDataURL('image/webp', 0.8);
+      // Очень старый браузер без WebP-экспорта → отдадим PNG, сервер его примет.
+      if (dataUrl.indexOf('data:image/webp') !== 0) dataUrl = canvas.toDataURL('image/png');
+      resolve(dataUrl);
+    };
+    img.onerror = function () { URL.revokeObjectURL(objUrl); reject(new Error('Не удалось прочитать изображение')); };
+    img.src = objUrl;
+  });
+}
+
 /* ── SlideRow ─────────────────────────────────────────────────── */
 function SlideRow(props) {
   var img       = props.img;
@@ -198,6 +222,41 @@ function AdminHeroCarousel() {
   var preview      = previewState[0];
   var setPreview   = previewState[1];
 
+  var uploadingState = React.useState(false);
+  var uploading      = uploadingState[0];
+  var setUploading   = uploadingState[1];
+
+  var dragState  = React.useState(false);
+  var dragOver   = dragState[0];
+  var setDragOver = dragState[1];
+
+  function handleFiles(fileList) {
+    var file = fileList && fileList[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { setError('Это не изображение'); return; }
+    setError('');
+    setUploading(true);
+    compressToWebp(file, 960)
+      .then(function (dataUrl) {
+        return fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': heroAdminToken() },
+          body: JSON.stringify({ filename: file.name, dataUrl: dataUrl }),
+        });
+      })
+      .then(function (r) { return r.json().then(function (j) { return { httpOk: r.ok, body: j }; }); })
+      .then(function (res) {
+        setUploading(false);
+        if (!res.httpOk || !res.body || !res.body.ok) {
+          setError((res.body && res.body.error) || 'Не удалось загрузить файл');
+          return;
+        }
+        setUrlInput(res.body.data.url); // готовый CDN-URL сразу в поле
+        if (!labelInput) setLabelInput(file.name.replace(/\.[^.]+$/, ''));
+      })
+      .catch(function () { setUploading(false); setError('Сеть недоступна — файл не загружен'); });
+  }
+
   React.useEffect(function() {
     var stored = carouselRead();
     if (stored.length) setImages(stored); // мгновенно из кэша
@@ -301,8 +360,46 @@ function AdminHeroCarousel() {
       <div style={{ background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg)', padding: '28px 32px', marginBottom: 28 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 20, color: 'var(--om-ink)' }}>Добавить изображение</div>
         <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label
+            onDragOver={function (e) { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={function (e) { e.preventDefault(); setDragOver(false); }}
+            onDrop={function (e) { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 8, padding: '28px 20px', cursor: uploading ? 'progress' : 'pointer',
+              border: '1.5px dashed ' + (dragOver ? 'var(--om-coral)' : 'var(--om-hairline)'),
+              borderRadius: 'var(--om-radius-md)',
+              background: dragOver ? 'var(--om-coral-pale, var(--om-cream))' : 'var(--om-canvas)',
+              transition: 'border-color 140ms ease, background 140ms ease', textAlign: 'center',
+            }}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploading}
+              onChange={function (e) { handleFiles(e.target.files); e.target.value = ''; }}
+              style={{ display: 'none' }}
+            />
+            {uploading ? (
+              <React.Fragment>
+                <LucideIcon name="loader" size={22} style={{ color: 'var(--om-coral)' }} />
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--om-ink)' }}>Сжимаю и загружаю…</span>
+              </React.Fragment>
+            ) : (
+              <React.Fragment>
+                <LucideIcon name="upload-cloud" size={24} style={{ color: 'var(--om-muted)' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--om-ink)' }}>
+                  Перетащите картинку или нажмите, чтобы выбрать
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--om-muted)' }}>
+                  Сожмётся в WebP ≤960px автоматически. Путь появится в поле ниже.
+                </span>
+              </React.Fragment>
+            )}
+          </label>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--om-muted)' }}>URL изображения *</label>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--om-muted)' }}>URL изображения * <span style={{ fontWeight: 400 }}>— заполнится после загрузки или вставьте ссылку вручную</span></label>
             <input
               type="text"
               value={urlInput}
@@ -402,8 +499,8 @@ function AdminHeroCarousel() {
       <div style={{ marginTop: 24, padding: '14px 20px', background: 'var(--om-cream)', borderRadius: 'var(--om-radius-md)', fontSize: 12, color: 'var(--om-muted)', display: 'flex', gap: 10 }}>
         <LucideIcon name="info" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>
-          Данные хранятся в localStorage и применяются в этом браузере мгновенно.
-          Для локальных файлов путь: ../../uploads/карусель/файл.png
+          Загруженные картинки хранятся в облаке (Vercel Blob) и сразу доступны на сайте.
+          Список слайдов и порядок сохраняются на сервере. Можно также вставить готовую ссылку вручную.
         </span>
       </div>
     </React.Fragment>
