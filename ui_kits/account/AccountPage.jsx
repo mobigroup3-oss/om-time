@@ -88,12 +88,44 @@ function AccountPage() {
   const nav = isAdmin ? NAV_ADMIN : NAV_SELLER;
   const [section, setSection] = React.useState(isAdmin ? 'analytics' : 'requests');
   const [eventsCount, setEventsCount] = React.useState(null);
+  const [freeLeads, setFreeLeads] = React.useState(0);   // свободных лидов (для продажника)
+  const [leadToast, setLeadToast] = React.useState(null);
+  const prevFreeRef = React.useRef(null);
 
   // Подхватываем количество событий из редактора расписания через окно
   React.useEffect(() => {
     window.__omSetEventsCount = setEventsCount;
     return () => { delete window.__omSetEventsCount; };
   }, []);
+
+  // Уведомление продажнику о новых свободных лидах: периодически опрашиваем
+  // /api/requests?free=1 и, если их стало больше, чем в прошлый раз, показываем
+  // всплывашку. На пункте «Лиды» в навигации висит счётчик свободных.
+  React.useEffect(() => {
+    if (isAdmin) return;
+    let alive = true;
+    const poll = () => {
+      fetch('/api/requests?free=1', { headers: window.omAuth.headers() })
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => {
+          if (!alive || !j || !j.ok || !Array.isArray(j.data)) return;
+          const n = j.data.length;
+          const prev = prevFreeRef.current;
+          // Первый замер не считаем «новым» (это стартовое состояние, не событие).
+          if (prev !== null && n > prev) {
+            const delta = n - prev;
+            setLeadToast(delta === 1 ? 'Новый свободный лид — можно взять в работу' : ('Новых свободных лидов: ' + delta));
+            setTimeout(() => { if (alive) setLeadToast(null); }, 6000);
+          }
+          prevFreeRef.current = n;
+          setFreeLeads(n);
+        })
+        .catch(() => {});
+    };
+    poll();
+    const t = setInterval(poll, 45000);
+    return () => { alive = false; clearInterval(t); };
+  }, [isAdmin]);
 
   const userName = isAdmin ? 'Администратор' : (window.omAuth.sellerName() || 'Продажник');
   const userRole = isAdmin ? 'администратор' : 'продажник';
@@ -149,6 +181,10 @@ function AccountPage() {
                 {it.id === 'schedule' && eventsCount !== null && (
                   <span className="om-acc-nav-count">{eventsCount}</span>
                 )}
+                {it.id === 'requests' && !isAdmin && freeLeads > 0 && (
+                  <span className="om-acc-nav-count" title="Свободных лидов — можно взять в работу"
+                    style={{ background: 'var(--om-coral)', color: '#fff' }}>{freeLeads}</span>
+                )}
               </button>
             ))}
           </div>
@@ -169,6 +205,14 @@ function AccountPage() {
       <main className="om-acc-main">
         {renderSection()}
       </main>
+
+      {leadToast && (
+        <div className="om-toast" onClick={() => { setLeadToast(null); setSection('requests'); }}
+          style={{ cursor: 'pointer' }}>
+          <LucideIcon name="bell" size={16} />
+          {leadToast}
+        </div>
+      )}
     </React.Fragment>
   );
 }

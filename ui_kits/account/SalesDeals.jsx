@@ -144,6 +144,43 @@
     );
   }
 
+  // Воронка конверсии: горизонтальные полосы (ширина ∝ числу лидов на этапе).
+  function ConversionFunnel({ f }) {
+    const stages = [
+      { key: 'total',     label: 'Все лиды',          n: f.total,     tone: 'var(--om-indigo, #6b6496)' },
+      { key: 'inWork',    label: 'Взяты в работу',    n: f.inWork,    tone: 'var(--om-lilac, #8b7fb8)' },
+      { key: 'scheduled', label: 'Назначена встреча', n: f.scheduled, tone: 'var(--om-gold)' },
+      { key: 'won',       label: 'Сделка закрыта',    n: f.won,       tone: 'var(--om-sage-deep)' },
+    ];
+    const base = f.total || 1;
+    const conv = f.total ? Math.round((f.won / f.total) * 100) : 0;
+    return (
+      <div style={ST.chartWrap}>
+        {stages.map((s, i) => {
+          const pct = Math.round((s.n / base) * 100);
+          const fromPrev = i > 0 && stages[i - 1].n ? Math.round((s.n / stages[i - 1].n) * 100) : null;
+          return (
+            <div key={s.key} style={ST.funRow}>
+              <div style={ST.funLabel}>{s.label}</div>
+              <div style={ST.funTrack}>
+                <div style={{ ...ST.funFill, width: Math.max(pct, 2) + '%', background: s.tone }}>
+                  <span style={ST.funNum}>{s.n}</span>
+                </div>
+              </div>
+              <div style={ST.funPct}>
+                {pct}%{fromPrev !== null && <span style={{ color: 'var(--om-faint)' }}> · {fromPrev}% от пред.</span>}
+              </div>
+            </div>
+          );
+        })}
+        <div style={ST.funFooter}>
+          <LucideIcon name="target" size={14} />
+          Итоговая конверсия лид → сделка: <strong style={{ color: 'var(--om-ink)' }}>{conv}%</strong>
+        </div>
+      </div>
+    );
+  }
+
   function StatusBadge({ status }) {
     const s = statusInfo(status);
     return <span className={'om-tag-mini om-tag-mini--' + s.tone}>{s.label}</span>;
@@ -168,6 +205,8 @@
     const [period, setPeriod] = useState('month');   // по умолчанию — текущий месяц (план тоже месячный)
     const [chartMode, setChartMode] = useState('day');
     const [myGoal, setMyGoal] = useState(0);          // план самого продажника
+    const [history, setHistory] = useState([]);       // все сделки за всё время (план/факт по месяцам)
+    const [leads, setLeads] = useState([]);           // заявки/лиды (воронка конверсии)
     const [editing, setEditing] = useState(null);    // 'new' | deal.id | null
     const [toast, setToast] = useState(null);
 
@@ -185,6 +224,19 @@
       });
     };
     useEffect(() => { load(); }, [sellerFilter, period]);
+
+    // История за всё время (план/факт по месяцам) + лиды (воронка) — не зависят
+    // от выбранного периода, но реагируют на фильтр по продажнику (у админа).
+    useEffect(() => {
+      const sq = isAdmin && sellerFilter !== 'all' ? '?seller=' + encodeURIComponent(sellerFilter) : '';
+      api('GET', null, sq).then(j => {
+        if (j && j.ok && Array.isArray(j.data)) setHistory(j.data);
+      });
+      fetch('/api/requests', { headers: auth().headers() })
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => { if (j && j.ok && Array.isArray(j.data)) setLeads(j.data); })
+        .catch(() => {});
+    }, [sellerFilter]);
 
     useEffect(() => {
       if (isAdmin) {
@@ -205,9 +257,39 @@
     const goalMap = {};
     sellers.forEach(s => { goalMap[s.id] = s.monthlyGoal || 0; });
     // План для текущего среза: продажнику — свой; админу при выборе конкретного — его.
+    // Для «все продажники» план месяца = сумма планов всех продажников.
+    const totalGoal = sellers.reduce((s, x) => s + (x.monthlyGoal || 0), 0);
     const currentGoal = isAdmin
-      ? (sellerFilter !== 'all' ? (goalMap[sellerFilter] || 0) : 0)
+      ? (sellerFilter !== 'all' ? (goalMap[sellerFilter] || 0) : totalGoal)
       : myGoal;
+    // Месячный план-ориентир для блока «План/факт по месяцам».
+    const monthlyGoalRef = isAdmin
+      ? (sellerFilter !== 'all' ? (goalMap[sellerFilter] || 0) : totalGoal)
+      : myGoal;
+
+    // ── План/факт по месяцам (из всей истории, последние 12 мес.) ─────
+    const monthRows = (() => {
+      const map = {};
+      history.forEach(d => {
+        if (d.status !== 'won') return;
+        const dt = new Date(d.closedAt); if (isNaN(dt)) return;
+        const key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+        if (!map[key]) map[key] = { key, paid: 0, count: 0, date: new Date(dt.getFullYear(), dt.getMonth(), 1) };
+        map[key].paid += Number(d.amount) || 0; map[key].count += 1;
+      });
+      return Object.values(map).sort((a, b) => b.key.localeCompare(a.key)).slice(0, 12);
+    })();
+
+    // ── Воронка конверсии: лиды → сделки (за выбранный период) ────────
+    const funnel = (() => {
+      const from = periodFrom(period);
+      const scoped = leads.filter(l => !from || new Date(l.createdAt) >= from);
+      const total = scoped.length;
+      const inWork = scoped.filter(l => ['contacted', 'scheduled', 'done'].includes(l.status)).length;
+      const scheduled = scoped.filter(l => ['scheduled', 'done'].includes(l.status)).length;
+      const won = scoped.filter(l => l.status === 'done').length;
+      return { total, inWork, scheduled, won };
+    })();
 
     // ── Сводка за период ──────────────────────────────────────
     const won = items.filter(d => d.status === 'won');
@@ -324,6 +406,52 @@
               </div>
             </div>
             <RevenueChart deals={won} mode={chartMode} />
+          </div>
+        )}
+
+        {/* Воронка конверсии: лиды → сделки */}
+        {funnel.total > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={ST.blockLabel}><LucideIcon name="filter" size={15} /> Воронка: лиды → сделки</div>
+            <ConversionFunnel f={funnel} />
+          </div>
+        )}
+
+        {/* План/факт по месяцам */}
+        {monthRows.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={ST.blockLabel}><LucideIcon name="calendar-range" size={15} /> План / факт по месяцам</div>
+            <div className="om-adm-table-wrap">
+              <table className="om-adm-table">
+                <thead>
+                  <tr>
+                    <th>Месяц</th>
+                    <th>Сделок</th>
+                    <th>Факт</th>
+                    <th>План</th>
+                    <th>Выполнение</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthRows.map(m => (
+                    <tr key={m.key}>
+                      <td style={{ fontWeight: 500, color: 'var(--om-ink)', textTransform: 'capitalize' }}>
+                        {m.date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+                      </td>
+                      <td>{m.count}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--om-ink)' }}>{fmtMoney(m.paid)}</td>
+                      <td style={{ color: 'var(--om-muted)' }}>{monthlyGoalRef ? fmtMoney(monthlyGoalRef) : '—'}</td>
+                      <td><GoalBar paid={m.paid} goal={monthlyGoalRef} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {monthlyGoalRef === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--om-faint)', margin: '8px 2px 0' }}>
+                Чтобы видеть процент выполнения, задайте план продаж{isAdmin ? ' продажникам в разделе «Продажники»' : ''}.
+              </p>
+            )}
           </div>
         )}
 
@@ -577,6 +705,13 @@
     chartHintRow: { display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: 'var(--om-faint)' },
     barTrack: { height: 6, borderRadius: 3, background: 'var(--om-canvas-strong, #efe9dd)', overflow: 'hidden' },
     barFill: { height: '100%', borderRadius: 3, transition: 'width .3s ease' },
+    funRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 },
+    funLabel: { flex: '0 0 140px', fontSize: 12.5, color: 'var(--om-muted)' },
+    funTrack: { flex: 1, height: 26, background: 'var(--om-canvas-strong, #efe9dd)', borderRadius: 6, overflow: 'hidden' },
+    funFill: { height: '100%', borderRadius: 6, display: 'flex', alignItems: 'center', minWidth: 22, transition: 'width .4s ease' },
+    funNum: { color: '#fff', fontSize: 12, fontWeight: 600, padding: '0 8px', whiteSpace: 'nowrap' },
+    funPct: { flex: '0 0 130px', fontSize: 11.5, color: 'var(--om-muted)', textAlign: 'right' },
+    funFooter: { display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, paddingTop: 12, borderTop: '1px solid var(--om-hairline)', fontSize: 13, color: 'var(--om-muted)' },
     refundHint: {
       display: 'flex', alignItems: 'center', gap: 6, margin: '12px 0 0',
       fontSize: 12.5, color: 'var(--om-coral)',
