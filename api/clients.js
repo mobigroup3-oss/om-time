@@ -146,8 +146,11 @@ export default async function handler(req, res) {
     if (!me) return res.status(401).json({ ok: false, error: 'Нужна авторизация клиента' });
     let specialist = null;
     if (me.specialist_id) {
-      const s = await sql`SELECT id, name, role_label FROM team_members WHERE id = ${me.specialist_id} LIMIT 1`;
-      if (s.rows.length) specialist = { id: s.rows[0].id, name: s.rows[0].name, roleLabel: s.rows[0].role_label || '' };
+      const s = await sql`SELECT id, name, role_label, photo, tone FROM team_members WHERE id = ${me.specialist_id} LIMIT 1`;
+      if (s.rows.length) specialist = {
+        id: s.rows[0].id, name: s.rows[0].name, roleLabel: s.rows[0].role_label || '',
+        photo: s.rows[0].photo || '', tone: s.rows[0].tone || 'lilac',
+      };
     }
     return res.status(200).json({
       ok: true,

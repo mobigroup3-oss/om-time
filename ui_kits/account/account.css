@@ -753,3 +753,8 @@ html, body { background: var(--om-canvas); }
   .om-hbar-row { grid-template-columns: 1fr auto; }
   .om-hbar-label { grid-column: 1 / -1; }
 }
+
+/* График «Выручка» (SalesDeals) — анимация появления столбцов */
+@keyframes om-rev-rise { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+.om-rev-bar { transform-origin: bottom; animation: om-rev-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .om-rev-bar { animation: none; } }

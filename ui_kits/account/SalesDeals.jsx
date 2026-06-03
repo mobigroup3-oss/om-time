@@ -106,8 +106,22 @@
     );
   }
 
-  // График выручки по дням/неделям (только оплаченные).
+  // Короткий формат денег для оси (30 000 → «30к», 1 500 000 → «1.5 млн»).
+  const moneyShort = (n) => {
+    n = Number(n) || 0;
+    if (n >= 1e6) return (n / 1e6).toFixed(n % 1e6 ? 1 : 0).replace('.', ',') + ' млн';
+    if (n >= 1e3) return Math.round(n / 1e3) + 'к';
+    return String(Math.round(n));
+  };
+
+  // График выручки по дням/неделям (только оплаченные). Современный вид:
+  // градиентные столбцы с анимацией появления, сетка значений, линия среднего,
+  // hover-тултип. Только transform/opacity-эффекты — без тяжёлых зависимостей.
   function RevenueChart({ deals, mode }) {
+    const [hover, setHover] = useState(null);
+    const H = 150;     // высота области столбцов, px
+    const BASE = 24;   // полоса под подписи оси X, px
+
     const buckets = {};
     deals.forEach(d => {
       const dt = new Date(d.closedAt);
@@ -120,21 +134,51 @@
     });
     const keys = Object.keys(buckets).sort();
     if (!keys.length) return null;
-    const max = Math.max.apply(null, keys.map(k => buckets[k].sum)) || 1;
+    const vals = keys.map(k => buckets[k].sum);
+    const max = Math.max.apply(null, vals) || 1;
+    const avg = vals.reduce((a, b) => a + b, 0) / keys.length;
     const showLabels = keys.length <= 16;
+    const gridFs = [1, 0.5, 0];   // линии сетки: макс / середина / ноль
+
     return (
       <div style={ST.chartWrap}>
-        <div style={ST.chartBars}>
-          {keys.map(k => {
-            const b = buckets[k];
-            const h = Math.max(Math.round((b.sum / max) * 140), 3);
-            return (
-              <div key={k} style={ST.chartCol} title={(mode === 'week' ? 'Неделя с ' : '') + b.label + ': ' + fmtMoney(b.sum)}>
-                <div style={{ ...ST.chartBar, height: h + 'px' }} />
-                {showLabels && <div style={ST.chartX}>{b.label}</div>}
-              </div>
-            );
-          })}
+        <div style={{ ...ST.plot, height: (H + BASE) + 'px' }}>
+          {/* Сетка значений */}
+          {gridFs.map((f, i) => (
+            <div key={'g' + i} style={{ ...ST.grid, bottom: (BASE + f * H) + 'px' }}>
+              <span style={ST.gridLabel}>{moneyShort(max * f)}</span>
+            </div>
+          ))}
+
+          {/* Линия среднего */}
+          {avg > 0 && avg < max && (
+            <div style={{ ...ST.avgLine, bottom: (BASE + (avg / max) * H) + 'px' }}>
+              <span style={ST.avgTag}>среднее · {moneyShort(avg)}</span>
+            </div>
+          )}
+
+          {/* Столбцы */}
+          <div style={{ ...ST.bars, bottom: BASE + 'px' }}>
+            {keys.map((k, i) => {
+              const b = buckets[k];
+              const h = Math.max(Math.round((b.sum / max) * H), 4);
+              const active = hover === i;
+              return (
+                <div key={k} style={ST.barCol}
+                  onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+                  {active && (
+                    <div style={{ ...ST.tip, bottom: (h + 10) + 'px' }}>
+                      <div style={ST.tipVal}>{fmtMoney(b.sum)}</div>
+                      <div style={ST.tipLbl}>{(mode === 'week' ? 'неделя с ' : '') + b.label}</div>
+                    </div>
+                  )}
+                  <div className="om-rev-bar"
+                    style={{ ...ST.bar, height: h + 'px', animationDelay: (i * 0.045) + 's', ...(active ? ST.barActive : null) }} />
+                  {showLabels && <div style={ST.barX}>{b.label}</div>}
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div style={ST.chartHintRow}>
           <span>{mode === 'week' ? 'По неделям' : 'По дням'}</span>
@@ -665,6 +709,22 @@
                 <LucideIcon name="alert-triangle" size={14} /> Сделка помечена как возврат — её сумма не войдёт в «Оплачено».
               </p>
             )}
+
+            {/* Сформировать кабинет клиента — только админ, по оплаченной сделке. */}
+            {isAdmin && isEdit && form.status === 'won' && ClientFormModal && (
+              <div style={ST.cabinetCta}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-ink)' }}>Личный кабинет клиента</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--om-muted)', marginTop: 2 }}>
+                    Создать кабинет с входом по коду и прикрепить специалиста. Данные подставятся из сделки.
+                  </div>
+                </div>
+                <button className="om-btn om-btn--secondary" onClick={() => setShowClient(true)} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <LucideIcon name="contact-round" size={16} style={{ marginRight: 6 }} />
+                  Сформировать кабинет
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="om-modal-foot">
@@ -672,13 +732,6 @@
               <button style={ST.deleteBtn} onClick={() => onDelete(deal.id)}>
                 <LucideIcon name="trash-2" size={15} style={{ marginRight: 6 }} />
                 Удалить
-              </button>
-            )}
-            {/* Сформировать кабинет клиента — только админ, по оплаченной сделке. */}
-            {isAdmin && isEdit && form.status === 'won' && ClientFormModal && (
-              <button className="om-btn om-btn--secondary" onClick={() => setShowClient(true)}>
-                <LucideIcon name="contact-round" size={16} style={{ marginRight: 6 }} />
-                Сформировать кабинет клиента
               </button>
             )}
             <button className="om-btn om-btn--secondary" onClick={onClose}>Отмена</button>
@@ -733,13 +786,31 @@
     },
     toggleBtnActive: { background: 'var(--om-canvas-white)', color: 'var(--om-ink)', fontWeight: 500, boxShadow: '0 1px 3px rgba(27,24,64,0.08)' },
     chartWrap: {
-      background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
-      borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px 12px',
+      background: 'linear-gradient(180deg, var(--om-canvas-white) 0%, var(--om-canvas, #fbf8f2) 100%)',
+      border: '1px solid var(--om-hairline)',
+      borderRadius: 'var(--om-radius-lg, 16px)', padding: '20px 20px 12px',
     },
-    chartBars: { display: 'flex', alignItems: 'flex-end', gap: 6, height: 160, overflowX: 'auto', paddingBottom: 4 },
-    chartCol: { flex: '1 0 18px', minWidth: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
-    chartBar: { width: '100%', maxWidth: 36, background: 'var(--om-gold)', borderRadius: '6px 6px 0 0', transition: 'height .3s ease' },
-    chartX: { marginTop: 6, fontSize: 10.5, color: 'var(--om-faint)', whiteSpace: 'nowrap' },
+    plot: { position: 'relative', paddingLeft: 46 },
+    grid: { position: 'absolute', left: 46, right: 0, height: 0, borderTop: '1px dashed var(--om-hairline)', pointerEvents: 'none' },
+    gridLabel: { position: 'absolute', left: -46, top: -7, width: 40, textAlign: 'right', fontSize: 10, color: 'var(--om-faint)', fontVariantNumeric: 'tabular-nums' },
+    avgLine: { position: 'absolute', left: 46, right: 0, height: 0, borderTop: '1.5px dashed var(--om-coral)', opacity: 0.55, pointerEvents: 'none' },
+    avgTag: { position: 'absolute', right: 0, top: -16, fontSize: 10, fontWeight: 600, color: 'var(--om-coral)', background: 'var(--om-canvas-white)', padding: '0 4px', borderRadius: 4 },
+    bars: { position: 'absolute', left: 46, right: 4, top: 0, display: 'flex', alignItems: 'flex-end', gap: 7 },
+    barCol: { position: 'relative', flex: '1 1 0', minWidth: 8, display: 'flex', justifyContent: 'center' },
+    bar: {
+      width: '100%', maxWidth: 34,
+      background: 'linear-gradient(180deg, var(--om-gold, #f2c12e) 0%, var(--om-gold-soft, #f7dd8e) 100%)',
+      borderRadius: '7px 7px 2px 2px', transition: 'filter .2s ease, box-shadow .2s ease, transform .2s ease',
+    },
+    barActive: { filter: 'brightness(1.04) saturate(1.1)', boxShadow: '0 6px 18px rgba(242,193,46,0.45)' },
+    barX: { position: 'absolute', bottom: -19, fontSize: 10, color: 'var(--om-faint)', whiteSpace: 'nowrap' },
+    tip: {
+      position: 'absolute', left: '50%', transform: 'translateX(-50%)', zIndex: 5,
+      background: 'var(--om-ink, #1b1840)', color: '#fff', padding: '6px 10px', borderRadius: 8,
+      whiteSpace: 'nowrap', boxShadow: '0 8px 24px rgba(27,24,64,0.22)', pointerEvents: 'none',
+    },
+    tipVal: { fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' },
+    tipLbl: { fontSize: 10.5, opacity: 0.7, marginTop: 1 },
     chartHintRow: { display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: 'var(--om-faint)' },
     barTrack: { height: 6, borderRadius: 3, background: 'var(--om-canvas-strong, #efe9dd)', overflow: 'hidden' },
     barFill: { height: '100%', borderRadius: 3, transition: 'width .3s ease' },
@@ -753,6 +824,11 @@
     refundHint: {
       display: 'flex', alignItems: 'center', gap: 6, margin: '12px 0 0',
       fontSize: 12.5, color: 'var(--om-coral)',
+    },
+    cabinetCta: {
+      display: 'flex', alignItems: 'center', gap: 14, marginTop: 16, padding: '14px 16px',
+      borderRadius: 'var(--om-radius-lg, 16px)', background: 'var(--om-canvas-strong, #efe9dd)',
+      border: '1px solid var(--om-hairline)',
     },
     deleteBtn: {
       marginRight: 'auto', display: 'inline-flex', alignItems: 'center',

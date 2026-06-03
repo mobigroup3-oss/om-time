@@ -7,30 +7,62 @@
   const { useState, useEffect } = React;
   const LucideIcon = window.LucideIcon;
 
-  const PROFILE_KEY = 'omtime.profile.v1';
+  const auth = () => window.omAuth;
+  const ROLE_LABEL = { admin: 'администратор', seller: 'продажник', specialist: 'специалист', client: 'клиент' };
 
-  const DEFAULT_PROFILE = {
-    name: 'Татьяна Педас',
-    email: 'tatiana@omtime.kz',
-    phone: '+7 701 000 00 00',
-    city: 'Алматы',
-    notifyBookings: true,
-    notifyReminders: true,
-    notifyNews: false,
-  };
+  // Личность текущего пользователя: роль + id + базовое имя из сессии.
+  // Профиль раньше был общим моком (omtime.profile.v1) на весь браузер — поэтому
+  // разные роли видели чужие данные. Теперь ключ привязан к роли+id, а контакты
+  // подтягиваются из реального аккаунта (клиент → /api/clients?action=me и т.д.).
+  function identity() {
+    const A = auth();
+    const role = A.role();
+    if (role === 'client')     return { role, id: A.clientId(),     name: A.clientName()     || 'Клиент' };
+    if (role === 'specialist') return { role, id: A.specialistId(), name: A.specialistName() || 'Специалист' };
+    if (role === 'seller')     return { role, id: A.sellerId(),     name: A.sellerName()     || 'Продажник' };
+    return { role: 'admin', id: 'admin', name: 'Администратор' };
+  }
 
+  const BLANK = { name: '', email: '', phone: '', city: '', notifyBookings: true, notifyReminders: true, notifyNews: false };
+
+  // Возвращает [data, setData, ident, roleLabel]. Сидирование реальными данными —
+  // только если профиль ещё не сохраняли локально под этим ключом.
   function useProfile() {
+    const ident = identity();
+    const KEY = 'omtime.profile.' + ident.role + '.' + (ident.id || 'x');
     const [data, setData] = useState(() => {
-      try {
-        const raw = localStorage.getItem(PROFILE_KEY);
-        if (raw) return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
-      } catch (e) {}
-      return DEFAULT_PROFILE;
+      try { const raw = localStorage.getItem(KEY); if (raw) return { ...BLANK, ...JSON.parse(raw) }; } catch (e) {}
+      return { ...BLANK, name: ident.name };
     });
+    const [roleLabel, setRoleLabel] = useState(ROLE_LABEL[ident.role] || '');
+
     useEffect(() => {
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)); } catch (e) {}
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
     }, [data]);
-    return [data, setData];
+
+    // Подтянуть реальные контактные данные (если локально ещё не правили).
+    useEffect(() => {
+      let saved = false;
+      try { saved = !!localStorage.getItem(KEY); } catch (e) {}
+      if (ident.role === 'client') {
+        fetch('/api/clients?action=me', { headers: auth().headers() })
+          .then(r => r.ok ? r.json() : null)
+          .then(j => {
+            if (!j || !j.ok || !j.data) return;
+            if (!saved) setData(d => ({ ...d, name: j.data.name || d.name, email: j.data.email || '', city: j.data.city || '', phone: j.data.phone || '' }));
+          }).catch(() => {});
+      } else if (ident.role === 'specialist') {
+        fetch('/api/team?action=me', { headers: auth().headers() })
+          .then(r => r.ok ? r.json() : null)
+          .then(j => {
+            if (!j || !j.ok || !j.data) return;
+            if (j.data.roleLabel) setRoleLabel(j.data.roleLabel);
+            if (!saved) setData(d => ({ ...d, name: j.data.name || d.name }));
+          }).catch(() => {});
+      }
+    }, []);
+
+    return [data, setData, ident, roleLabel];
   }
 
   function Card({ title, sub, children }) {
@@ -63,10 +95,13 @@
   }
 
   function ProfileView() {
-    const [data, setData] = useProfile();
+    const [data, setData, ident, roleLabel] = useProfile();
     const [form, setForm] = useState(data);
     const [pwd, setPwd] = useState({ current: '', next: '', repeat: '' });
     const [toast, setToast] = useState(null);
+
+    // data сидируется асинхронно (реальные данные аккаунта) — синхронизируем форму.
+    useEffect(() => { setForm(data); }, [data]);
 
     const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
     const setP = (key, value) => setPwd(p => ({ ...p, [key]: value }));
@@ -96,7 +131,9 @@
           <div>
             <div className="om-acc-eyebrow">Личное</div>
             <h1 className="om-acc-title">Профиль</h1>
-            <p className="om-acc-sub">Контактные данные, уведомления и пароль.</p>
+            <p className="om-acc-sub">
+              {form.name || ident.name}{roleLabel ? ' · ' + roleLabel : ''}. Контактные данные, уведомления и пароль.
+            </p>
           </div>
         </div>
 

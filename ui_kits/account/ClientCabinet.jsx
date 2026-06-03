@@ -83,7 +83,9 @@
               <div style={ST.cardLabel}>Ваш специалист</div>
               {specialist ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={ST.avatar}>{initials(specialist.name)}</span>
+                  {specialist.photo
+                    ? <img src={specialist.photo} alt="" style={ST.avatarImg} />
+                    : <span style={ST.avatar}>{initials(specialist.name)}</span>}
                   <div>
                     <div style={{ fontWeight: 600, color: 'var(--om-ink)' }}>{specialist.name}</div>
                     {specialist.roleLabel && <div style={{ fontSize: 12.5, color: 'var(--om-muted)' }}>{specialist.roleLabel}</div>}
@@ -114,6 +116,7 @@
     card: { background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px' },
     cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--om-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 },
     avatar: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', flexShrink: 0, background: 'var(--om-lilac)', color: 'var(--om-indigo-deep)', fontSize: 15, fontWeight: 600 },
+    avatarImg: { width: 44, height: 44, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', display: 'block' },
   };
 
   window.ClientCabinet = ClientCabinet;
