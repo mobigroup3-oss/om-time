@@ -413,7 +413,17 @@
         .catch(() => setLoaded(true));
       fetch('/api/clients?resource=groups', { headers: auth().headers() })
         .then(r => r.ok ? r.json() : null)
-        .then(j => { if (j && j.ok && Array.isArray(j.data)) setGroups(j.data); })
+        .then(j => {
+          if (j && j.ok && Array.isArray(j.data)) {
+            setGroups(j.data);
+            // При загрузке все папки свёрнуты. «Без папки» сворачиваем только
+            // когда папки есть — иначе единственный список окажется скрыт.
+            const init = {};
+            j.data.forEach(g => { init[g.id] = true; });
+            if (j.data.length) init.__ungrouped = true;
+            setCollapsed(init);
+          }
+        })
         .catch(() => {});
     }, []);
 
