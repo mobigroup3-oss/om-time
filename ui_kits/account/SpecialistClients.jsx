@@ -20,11 +20,38 @@
     'consult':          'Первая консультация',
   };
   const programTitle = (id) => PROGRAMS[id] || '—';
+  const PROGRAM_LIST = Object.keys(PROGRAMS).map(id => ({ id, title: PROGRAMS[id] }));
+
+  // Дата потока: YYYY-MM-DD → «15 июня 2026» (без сюрпризов часовых поясов).
+  const fmtGroupDate = (s) => {
+    if (!s) return '';
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return s;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (isNaN(d)) return s;
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  // Заголовок папки: своё название, иначе «Программа · дата».
+  const groupLabel = (g) => {
+    if (g.title) return g.title;
+    const parts = [];
+    if (g.programId) parts.push(programTitle(g.programId));
+    if (g.date) parts.push(fmtGroupDate(g.date));
+    return parts.join(' · ') || 'Папка без названия';
+  };
 
   const initials = (name) => {
     const p = (name || '').trim().split(/\s+/).filter(Boolean);
     if (!p.length) return '—';
     return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
+  };
+  // Склонение: 1 клиент, 2 клиента, 5 клиентов.
+  const clientWord = (n) => {
+    const a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return 'клиентов';
+    if (b > 1 && b < 5) return 'клиента';
+    if (b === 1) return 'клиент';
+    return 'клиентов';
   };
   const fmtDateTime = (iso) => {
     if (!iso) return '';
@@ -184,20 +211,158 @@
     );
   }
 
+  // ── Модалка создания/редактирования папки потока ──
+  // Props: { group, onClose, onSaved(savedGroup) }
+  function GroupModal({ group, onClose, onSaved }) {
+    const isEdit = !!group;
+    const [form, setForm] = useState({
+      title:     group ? (group.title || '')     : '',
+      programId: group ? (group.programId || '') : '',
+      date:      group ? (group.date || '')      : '',
+    });
+    const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+
+    // Папка осмысленна, если задано хоть что-то: название, программа или дата.
+    const valid = !!(form.title.trim() || form.programId || form.date);
+
+    const submit = () => {
+      if (!valid || busy) return;
+      setBusy(true); setErr('');
+      const payload = { title: form.title.trim(), programId: form.programId || null, date: form.date || null };
+      const method = isEdit ? 'PUT' : 'POST';
+      if (isEdit) payload.id = group.id;
+      fetch('/api/clients?resource=groups', {
+        method,
+        headers: auth().headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload),
+      }).then(r => r.json()).then(j => {
+        setBusy(false);
+        if (j && j.ok && j.data) { onSaved && onSaved(j.data); onClose(); }
+        else setErr((j && j.error) || 'Не удалось сохранить');
+      }).catch(() => { setBusy(false); setErr('Не удалось сохранить'); });
+    };
+
+    return (
+      <div className="om-modal-backdrop" onClick={onClose}>
+        <div className="om-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+          <div className="om-modal-head">
+            <h2 className="om-modal-title">{isEdit ? 'Папка потока' : 'Новая папка'}</h2>
+            <button className="om-modal-close" onClick={onClose}><LucideIcon name="x" size={18} /></button>
+          </div>
+          <div className="om-modal-body">
+            <div className="om-form-grid">
+              <label className="om-form-field om-form-field--full">
+                <span className="om-form-label">Программа</span>
+                <select className="om-form-select" value={form.programId} onChange={e => set('programId', e.target.value)}>
+                  <option value="">— не выбрана —</option>
+                  {PROGRAM_LIST.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </label>
+              <label className="om-form-field om-form-field--full">
+                <span className="om-form-label">Дата потока</span>
+                <input className="om-form-input" type="date" value={form.date}
+                  onChange={e => set('date', e.target.value)} />
+                <span className="om-form-help">Дата начала потока — по ней папки сортируются.</span>
+              </label>
+              <label className="om-form-field om-form-field--full">
+                <span className="om-form-label">Название (необязательно)</span>
+                <input className="om-form-input" type="text" value={form.title}
+                  onChange={e => set('title', e.target.value)}
+                  placeholder="Напр. «Поток июнь, утренняя группа»" />
+                <span className="om-form-help">Если пусто — папка называется «Программа · дата».</span>
+              </label>
+            </div>
+            {err && <p style={{ color: 'var(--om-danger)', fontSize: 13, margin: '10px 0 0' }}>{err}</p>}
+          </div>
+          <div className="om-modal-foot">
+            <button className="om-btn om-btn--secondary" onClick={onClose}>Отмена</button>
+            <button className="om-btn om-btn--primary" disabled={!valid || busy}
+              style={{ opacity: (valid && !busy) ? 1 : 0.5, pointerEvents: (valid && !busy) ? 'auto' : 'none' }}
+              onClick={submit}>
+              {isEdit ? 'Сохранить' : 'Создать папку'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Строка клиента в списке (внутри папки или в «Без папки»). Селект справа
+  // перемещает клиента между папками, не открывая карточку.
+  function ClientRow({ client, groups, onOpen, onMove }) {
+    return (
+      <div style={GR.row} onClick={() => onOpen(client.id)}>
+        <span style={DT.avatar}>{initials(client.name)}</span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 500, color: 'var(--om-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--om-muted)' }}>{programTitle(client.programId)}</div>
+        </div>
+        <select
+          className="om-form-select" value={client.groupId || ''}
+          onClick={e => e.stopPropagation()}
+          onChange={e => onMove(client.id, e.target.value)}
+          style={GR.moveSel} title="Папка клиента">
+          <option value="">Без папки</option>
+          {groups.map(g => <option key={g.id} value={g.id}>{groupLabel(g)}</option>)}
+        </select>
+        <LucideIcon name="chevron-right" size={18} style={{ color: 'var(--om-faint)', flexShrink: 0 }} />
+      </div>
+    );
+  }
+
   function SpecialistClients() {
     const [items, setItems] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [loaded, setLoaded] = useState(false);
     const [openId, setOpenId] = useState(null);
+    const [groupModal, setGroupModal] = useState(null);   // 'new' | group | null
+    const [toast, setToast] = useState(null);
+
+    const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
     useEffect(() => {
       fetch('/api/clients', { headers: auth().headers() })
         .then(r => r.ok ? r.json() : null)
         .then(j => { if (j && j.ok && Array.isArray(j.data)) setItems(j.data); setLoaded(true); })
         .catch(() => setLoaded(true));
+      fetch('/api/clients?resource=groups', { headers: auth().headers() })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => { if (j && j.ok && Array.isArray(j.data)) setGroups(j.data); })
+        .catch(() => {});
     }, []);
+
+    const move = (clientId, groupId) => {
+      setItems(cur => cur.map(c => c.id === clientId ? { ...c, groupId } : c));
+      fetch('/api/clients?resource=groups&action=assign', {
+        method: 'POST',
+        headers: auth().headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ clientId, groupId: groupId || null }),
+      }).catch(() => {});
+    };
+
+    const onGroupSaved = (g) => {
+      setGroups(cur => {
+        const exists = cur.some(x => x.id === g.id);
+        return exists ? cur.map(x => x.id === g.id ? g : x) : [g, ...cur];
+      });
+      showToast(groupModal === 'new' ? 'Папка создана' : 'Папка обновлена');
+    };
+
+    const deleteGroup = (g) => {
+      setGroups(cur => cur.filter(x => x.id !== g.id));
+      setItems(cur => cur.map(c => c.groupId === g.id ? { ...c, groupId: '' } : c));
+      fetch('/api/clients?resource=groups&id=' + encodeURIComponent(g.id), {
+        method: 'DELETE', headers: auth().headers(),
+      }).catch(() => {});
+      showToast('Папка удалена');
+    };
 
     const open = openId && items.find(c => c.id === openId);
     if (open) return <ClientDetail client={open} onBack={() => setOpenId(null)} />;
+
+    const ungrouped = items.filter(c => !c.groupId);
 
     return (
       <React.Fragment>
@@ -205,8 +370,14 @@
           <div>
             <div className="om-acc-eyebrow">Работа</div>
             <h1 className="om-acc-title">Мои клиенты</h1>
-            <p className="om-acc-sub">Клиенты, которых вы ведёте: их данные, таблицы и комментарии.</p>
+            <p className="om-acc-sub">Раскладывайте клиентов по папкам потоков (программа + дата), открывайте карточку для данных и комментариев.</p>
           </div>
+          {items.length > 0 && (
+            <button className="om-btn om-btn--primary" onClick={() => setGroupModal('new')}>
+              <LucideIcon name="folder-plus" size={18} style={{ marginRight: 8 }} />
+              Создать папку
+            </button>
+          )}
         </div>
 
         {loaded && items.length === 0 ? (
@@ -220,34 +391,70 @@
             </div>
           </div>
         ) : (
-          <div className="om-adm-table-wrap">
-            <table className="om-adm-table">
-              <thead>
-                <tr>
-                  <th>Клиент</th>
-                  <th>Программа</th>
-                  <th style={{ width: 48 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(c => (
-                  <tr key={c.id} onClick={() => setOpenId(c.id)} style={{ cursor: 'pointer' }}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={DT.avatar}>{initials(c.name)}</span>
-                        <span style={{ fontWeight: 500, color: 'var(--om-ink)' }}>{c.name}</span>
+          <div style={GR.stack}>
+            {groups.map(g => {
+              const inGroup = items.filter(c => c.groupId === g.id);
+              return (
+                <div key={g.id} style={GR.folder}>
+                  <div style={GR.folderHead}>
+                    <div style={GR.folderTitleWrap}>
+                      <LucideIcon name="folder" size={18} style={{ color: 'var(--om-gold-deep, #b8860b)', flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={GR.folderTitle}>{groupLabel(g)}</div>
+                        <div style={GR.folderMeta}>
+                          {g.programId ? programTitle(g.programId) : 'Без программы'}
+                          {g.date ? ' · ' + fmtGroupDate(g.date) : ''}
+                          {' · '}{inGroup.length} {clientWord(inGroup.length)}
+                        </div>
                       </div>
-                    </td>
-                    <td style={{ color: 'var(--om-muted)' }}>{programTitle(c.programId)}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--om-faint)' }}>
-                      <LucideIcon name="chevron-right" size={18} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button className="om-adm-icon-btn" title="Изменить папку" onClick={() => setGroupModal(g)}>
+                        <LucideIcon name="pencil" size={15} />
+                      </button>
+                      <button className="om-adm-icon-btn" data-danger="true" title="Удалить папку" onClick={() => deleteGroup(g)}>
+                        <LucideIcon name="trash-2" size={15} />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    {inGroup.length === 0
+                      ? <div style={GR.folderEmpty}>Пусто. Переместите сюда клиентов из списка ниже.</div>
+                      : inGroup.map(c => <ClientRow key={c.id} client={c} groups={groups} onOpen={setOpenId} onMove={move} />)}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={GR.folder}>
+              <div style={GR.folderHead}>
+                <div style={GR.folderTitleWrap}>
+                  <LucideIcon name="users" size={18} style={{ color: 'var(--om-muted)', flexShrink: 0 }} />
+                  <div>
+                    <div style={GR.folderTitle}>{groups.length ? 'Без папки' : 'Все клиенты'}</div>
+                    <div style={GR.folderMeta}>{ungrouped.length} {clientWord(ungrouped.length)}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                {ungrouped.length === 0
+                  ? <div style={GR.folderEmpty}>Все клиенты разложены по папкам.</div>
+                  : ungrouped.map(c => <ClientRow key={c.id} client={c} groups={groups} onOpen={setOpenId} onMove={move} />)}
+              </div>
+            </div>
           </div>
         )}
+
+        {groupModal && (
+          <GroupModal
+            key={groupModal === 'new' ? 'new' : groupModal.id}
+            group={groupModal === 'new' ? null : groupModal}
+            onClose={() => setGroupModal(null)}
+            onSaved={onGroupSaved}
+          />
+        )}
+
+        {toast && <div className="om-toast"><LucideIcon name="check" size={16} />{toast}</div>}
       </React.Fragment>
     );
   }
@@ -272,6 +479,17 @@
       borderRadius: 'var(--om-radius-lg, 16px)', padding: '40px 28px',
       textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
     },
+  };
+  const GR = {
+    stack: { display: 'flex', flexDirection: 'column', gap: 16 },
+    folder: { background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)', overflow: 'hidden' },
+    folderHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--om-hairline-soft, #eee)', background: 'var(--om-canvas-soft, #faf8f3)' },
+    folderTitleWrap: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
+    folderTitle: { fontSize: 14.5, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    folderMeta: { fontSize: 12, color: 'var(--om-muted)', marginTop: 1 },
+    folderEmpty: { fontSize: 13, color: 'var(--om-faint)', padding: '16px' },
+    row: { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--om-hairline-soft, #f0ece4)', cursor: 'pointer' },
+    moveSel: { flexShrink: 0, maxWidth: 200, fontSize: 12.5, padding: '5px 8px', height: 'auto' },
   };
   const DT = {
     back: { display: 'inline-flex', alignItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--om-muted)', padding: 0 },

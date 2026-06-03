@@ -41,6 +41,7 @@ function toCanonical(r) {
     requestId: r.request_id || null,
     specialistId: r.specialist_id || '',
     specialistName: r.specialist_name || '',   // из JOIN ниже
+    groupId: r.group_id || '',                  // папка специалиста (NULL = без папки)
     hasCode: !!r.code_hash,                     // задан ли код входа (сам код не отдаём)
     active: r.active !== false,
     createdAt: r.created_at,
@@ -60,6 +61,100 @@ function actToCanonical(r) {
     text: r.text || '',
     createdAt: r.created_at,
   };
+}
+
+function groupToCanonical(r) {
+  return {
+    id: r.id,
+    specialistId: r.specialist_id || '',
+    title: r.title || '',
+    programId: r.program_id || '',
+    date: r.group_date || '',                              // YYYY-MM-DD (TEXT)
+    clientCount: r.client_count != null ? Number(r.client_count) : 0,
+    createdAt: r.created_at,
+  };
+}
+
+// Папки/группы клиентов специалиста (client_groups). Только специалист-владелец:
+// заводит папки (программа + дата потока) и раскладывает по ним СВОИХ клиентов.
+//   GET    ?resource=groups                          → свои папки (со счётчиком клиентов)
+//   POST   ?resource=groups            { programId, date, title }     → создать
+//   PUT    ?resource=groups            { id, programId, date, title } → переименовать/изменить
+//   DELETE ?resource=groups&id=…                      → удалить (клиенты выпадают в «Без папки»)
+//   POST   ?resource=groups&action=assign  { clientId, groupId|null } → переместить клиента
+async function handleGroups(req, res, sql) {
+  if (!sql) {
+    if (req.method === 'GET') return res.status(200).json({ ok: true, data: [] });
+    return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });
+  }
+  const sp = await getSpecialist(req);
+  if (!sp) return res.status(401).json({ ok: false, error: 'Папки доступны специалисту' });
+
+  const action = req.query && req.query.action;
+
+  // Переместить клиента в папку / убрать из папки.
+  if (action === 'assign') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+    const b = readJson(req);
+    const clientId = b.clientId;
+    if (!clientId) return res.status(422).json({ ok: false, errors: { clientId: 'Нужен clientId' } });
+    // клиент должен быть прикреплён к этому специалисту
+    const own = await sql`SELECT 1 FROM clients WHERE id = ${clientId} AND specialist_id = ${sp.id} LIMIT 1`;
+    if (!own.rows.length) return res.status(403).json({ ok: false, error: 'Это не ваш клиент' });
+    let groupId = b.groupId;
+    if (groupId === '') groupId = null;
+    if (groupId != null) {
+      const g = await sql`SELECT 1 FROM client_groups WHERE id = ${groupId} AND specialist_id = ${sp.id} LIMIT 1`;
+      if (!g.rows.length) return res.status(403).json({ ok: false, error: 'Папка не найдена' });
+    }
+    await sql`UPDATE clients SET group_id = ${groupId} WHERE id = ${clientId}`;
+    return res.status(200).json({ ok: true, data: { clientId, groupId: groupId || '' } });
+  }
+
+  if (req.method === 'GET') {
+    const rows = await sql`
+      SELECT g.*, COUNT(c.id) AS client_count
+      FROM client_groups g
+      LEFT JOIN clients c ON c.group_id = g.id
+      WHERE g.specialist_id = ${sp.id}
+      GROUP BY g.id
+      ORDER BY g.group_date DESC NULLS LAST, g.created_at DESC`;
+    return res.status(200).json({ ok: true, data: rows.rows.map(groupToCanonical) });
+  }
+
+  if (req.method === 'DELETE') {
+    const id = req.query && req.query.id;
+    if (!id) return res.status(400).json({ ok: false, error: 'Нужен id' });
+    await sql`DELETE FROM client_groups WHERE id = ${id} AND specialist_id = ${sp.id}`;
+    return res.status(200).json({ ok: true });
+  }
+
+  // POST / PUT — создать или изменить папку.
+  const b = readJson(req);
+  const title = String(b.title || '').trim();
+  const programId = PROGRAMS.includes(b.programId) ? b.programId : null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) ? b.date : null;
+
+  if (req.method === 'POST') {
+    const id = 'g' + Date.now();
+    const ins = await sql`
+      INSERT INTO client_groups (id, specialist_id, title, program_id, group_date)
+      VALUES (${id}, ${sp.id}, ${title}, ${programId}, ${date})
+      RETURNING *, 0 AS client_count`;
+    return res.status(200).json({ ok: true, data: groupToCanonical(ins.rows[0]) });
+  }
+
+  if (req.method === 'PUT') {
+    if (!b.id) return res.status(400).json({ ok: false, error: 'Нужен id' });
+    const upd = await sql`
+      UPDATE client_groups SET title = ${title}, program_id = ${programId}, group_date = ${date}
+      WHERE id = ${b.id} AND specialist_id = ${sp.id}
+      RETURNING *, (SELECT COUNT(*) FROM clients WHERE group_id = ${b.id}) AS client_count`;
+    if (!upd.rows.length) return res.status(404).json({ ok: false, error: 'Папка не найдена' });
+    return res.status(200).json({ ok: true, data: groupToCanonical(upd.rows[0]) });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
 }
 
 // Кто обращается к ленте и к каким клиентам у него доступ.
@@ -123,6 +218,9 @@ export default async function handler(req, res) {
 
   // Лента кабинета клиента — отдельная ветка (см. handleActivities выше).
   if (req.query && req.query.resource === 'activities') return handleActivities(req, res, sql);
+
+  // Папки/группы клиентов специалиста — отдельная ветка (см. handleGroups выше).
+  if (req.query && req.query.resource === 'groups') return handleGroups(req, res, sql);
 
   // ── Вход клиента по личному коду ──────────────────────────
   if (action === 'login') {

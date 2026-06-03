@@ -248,3 +248,21 @@ CREATE TABLE IF NOT EXISTS client_activities (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_client_act ON client_activities (client_id, created_at);
+
+-- ── Папки/группы клиентов специалиста ──────────────────────
+-- Специалист ведёт много клиентов по разным программам и потокам, поэтому
+-- раскладывает их по папкам. Папка привязана к программе и дате потока
+-- (необязательное название сверху). Владелец — специалист (team_members).
+-- Клиент лежит максимум в одной папке (clients.group_id).
+CREATE TABLE IF NOT EXISTS client_groups (
+  id            TEXT PRIMARY KEY,                  -- g{timestamp}
+  specialist_id TEXT REFERENCES team_members(id) ON DELETE CASCADE,
+  title         TEXT,                              -- необязательное название папки
+  program_id    TEXT,                              -- программа потока (flagship-offline|…)
+  group_date    TEXT,                              -- дата потока YYYY-MM-DD (текст — без сюрпризов часовых поясов)
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_client_groups_spec ON client_groups (specialist_id);
+
+-- В какой папке лежит клиент (NULL = «Без папки»). Папку удалили → клиент выпадает из неё.
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS group_id TEXT REFERENCES client_groups(id) ON DELETE SET NULL;
