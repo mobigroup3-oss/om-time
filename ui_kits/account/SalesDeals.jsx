@@ -57,6 +57,92 @@
     return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
   };
   const todayISO = () => new Date().toISOString().slice(0, 10);
+  const dayLabel = (d) => d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+  // Понедельник недели, в которую попадает дата.
+  function weekStart(d) {
+    const x = new Date(d);
+    const shift = (x.getDay() + 6) % 7;   // 0=Пн … 6=Вс
+    x.setDate(x.getDate() - shift); x.setHours(0, 0, 0, 0);
+    return x;
+  }
+
+  // Выгрузка сделок в CSV (с BOM — корректно открывается в Excel; разделитель ';').
+  function exportCsv(items, isAdmin) {
+    const head = ['Дата', 'Клиент', 'Телефон', 'Программа', 'Сумма', 'Статус'];
+    if (isAdmin) head.push('Продажник');
+    const esc = (v) => {
+      const s = String(v == null ? '' : v);
+      return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const rows = items.map(d => {
+      const r = [fmtDate(d.closedAt), d.clientName, d.clientPhone || '', programTitle(d.programId),
+                 Number(d.amount) || 0, statusInfo(d.status).label];
+      if (isAdmin) r.push(d.sellerName || '');
+      return r;
+    });
+    const csv = [head].concat(rows).map(r => r.map(esc).join(';')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'om-time-сделки-' + todayISO() + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Прогресс-бар выполнения плана.
+  function GoalBar({ paid, goal }) {
+    if (!goal) return <span style={{ color: 'var(--om-faint)', fontSize: 12 }}>план не задан</span>;
+    const pct = Math.round((paid / goal) * 100);
+    const done = pct >= 100;
+    return (
+      <div style={{ minWidth: 120 }}>
+        <div style={ST.barTrack}>
+          <div style={{ ...ST.barFill, width: Math.min(pct, 100) + '%', background: done ? 'var(--om-sage-deep)' : 'var(--om-gold)' }} />
+        </div>
+        <div style={{ fontSize: 11.5, color: done ? 'var(--om-sage-deep)' : 'var(--om-muted)', marginTop: 3 }}>
+          {pct}% · {fmtMoney(goal)}
+        </div>
+      </div>
+    );
+  }
+
+  // График выручки по дням/неделям (только оплаченные).
+  function RevenueChart({ deals, mode }) {
+    const buckets = {};
+    deals.forEach(d => {
+      const dt = new Date(d.closedAt);
+      if (isNaN(dt)) return;
+      let key, label;
+      if (mode === 'week') { const ws = weekStart(dt); key = ws.toISOString().slice(0, 10); label = dayLabel(ws); }
+      else { key = dt.toISOString().slice(0, 10); label = dayLabel(dt); }
+      if (!buckets[key]) buckets[key] = { sum: 0, label };
+      buckets[key].sum += Number(d.amount) || 0;
+    });
+    const keys = Object.keys(buckets).sort();
+    if (!keys.length) return null;
+    const max = Math.max.apply(null, keys.map(k => buckets[k].sum)) || 1;
+    const showLabels = keys.length <= 16;
+    return (
+      <div style={ST.chartWrap}>
+        <div style={ST.chartBars}>
+          {keys.map(k => {
+            const b = buckets[k];
+            const h = Math.max(Math.round((b.sum / max) * 140), 3);
+            return (
+              <div key={k} style={ST.chartCol} title={(mode === 'week' ? 'Неделя с ' : '') + b.label + ': ' + fmtMoney(b.sum)}>
+                <div style={{ ...ST.chartBar, height: h + 'px' }} />
+                {showLabels && <div style={ST.chartX}>{b.label}</div>}
+              </div>
+            );
+          })}
+        </div>
+        <div style={ST.chartHintRow}>
+          <span>{mode === 'week' ? 'По неделям' : 'По дням'}</span>
+          <span>макс. {fmtMoney(max)}</span>
+        </div>
+      </div>
+    );
+  }
 
   function StatusBadge({ status }) {
     const s = statusInfo(status);
@@ -79,8 +165,10 @@
     const [sellers, setSellers] = useState([]);
     const [loaded, setLoaded] = useState(false);
     const [sellerFilter, setSellerFilter] = useState('all');
-    const [period, setPeriod] = useState('all');
-    const [editing, setEditing] = useState(null);   // 'new' | deal.id | null
+    const [period, setPeriod] = useState('month');   // по умолчанию — текущий месяц (план тоже месячный)
+    const [chartMode, setChartMode] = useState('day');
+    const [myGoal, setMyGoal] = useState(0);          // план самого продажника
+    const [editing, setEditing] = useState(null);    // 'new' | deal.id | null
     const [toast, setToast] = useState(null);
 
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
@@ -99,12 +187,27 @@
     useEffect(() => { load(); }, [sellerFilter, period]);
 
     useEffect(() => {
-      if (!isAdmin) return;
-      fetch('/api/sellers', { headers: auth().headers() })
-        .then(r => r.ok ? r.json() : null)
-        .then(j => { if (j && j.ok && Array.isArray(j.data)) setSellers(j.data); })
-        .catch(() => {});
+      if (isAdmin) {
+        fetch('/api/sellers', { headers: auth().headers() })
+          .then(r => r.ok ? r.json() : null)
+          .then(j => { if (j && j.ok && Array.isArray(j.data)) setSellers(j.data); })
+          .catch(() => {});
+      } else {
+        // продажник — узнаём свой план продаж
+        fetch('/api/sellers?action=me', { headers: auth().headers() })
+          .then(r => r.ok ? r.json() : null)
+          .then(j => { if (j && j.ok && j.data) setMyGoal(j.data.monthlyGoal || 0); })
+          .catch(() => {});
+      }
     }, []);
+
+    // Карта планов продажников (id → план на месяц).
+    const goalMap = {};
+    sellers.forEach(s => { goalMap[s.id] = s.monthlyGoal || 0; });
+    // План для текущего среза: продажнику — свой; админу при выборе конкретного — его.
+    const currentGoal = isAdmin
+      ? (sellerFilter !== 'all' ? (goalMap[sellerFilter] || 0) : 0)
+      : myGoal;
 
     // ── Сводка за период ──────────────────────────────────────
     const won = items.filter(d => d.status === 'won');
@@ -119,11 +222,11 @@
       const map = {};
       items.forEach(d => {
         const key = d.sellerId || '—';
-        if (!map[key]) map[key] = { name: d.sellerName || 'Не указан', won: 0, paid: 0, refunds: 0 };
+        if (!map[key]) map[key] = { id: d.sellerId || '', name: d.sellerName || 'Не указан', won: 0, paid: 0, refunds: 0 };
         if (d.status === 'won') { map[key].won += 1; map[key].paid += Number(d.amount) || 0; }
         else map[key].refunds += Number(d.amount) || 0;
       });
-      Object.keys(map).forEach(k => bySeller.push(map[k]));
+      Object.keys(map).forEach(k => { map[k].goal = goalMap[map[k].id] || 0; bySeller.push(map[k]); });
       bySeller.sort((a, b) => b.paid - a.paid);
     }
 
@@ -163,10 +266,17 @@
                 : 'Ваши закрытые продажи.'}
             </p>
           </div>
-          <button className="om-btn om-btn--primary" onClick={() => setEditing('new')}>
-            <LucideIcon name="plus" size={18} style={{ marginRight: 8 }} />
-            Добавить сделку
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+            <button className="om-btn om-btn--secondary" onClick={() => exportCsv(items, isAdmin)}
+              disabled={!items.length} style={{ opacity: items.length ? 1 : 0.5 }} title="Выгрузить список в CSV">
+              <LucideIcon name="download" size={17} style={{ marginRight: 8 }} />
+              Экспорт CSV
+            </button>
+            <button className="om-btn om-btn--primary" onClick={() => setEditing('new')}>
+              <LucideIcon name="plus" size={18} style={{ marginRight: 8 }} />
+              Добавить сделку
+            </button>
+          </div>
         </div>
 
         {/* Фильтры: период (всем) + продажник (админу) */}
@@ -190,7 +300,32 @@
           {(isAdmin || refundTotal > 0) && (
             <StatCard label="Возвраты" value={fmtMoney(refundTotal)} hint={refunded.length ? `${refunded.length} шт.` : '—'} />
           )}
+          {currentGoal > 0 && (
+            <StatCard
+              label="Выполнение плана"
+              value={Math.round((paidTotal / currentGoal) * 100) + '%'}
+              hint={'из ' + fmtMoney(currentGoal)}
+            />
+          )}
         </div>
+
+        {/* График выручки */}
+        {won.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={ST.blockLabelRow}>
+              <div style={ST.blockLabel}><LucideIcon name="trending-up" size={15} /> Выручка</div>
+              <div style={ST.toggle}>
+                {['day', 'week'].map(m => (
+                  <button key={m} onClick={() => setChartMode(m)}
+                    style={{ ...ST.toggleBtn, ...(chartMode === m ? ST.toggleBtnActive : null) }}>
+                    {m === 'day' ? 'По дням' : 'По неделям'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <RevenueChart deals={won} mode={chartMode} />
+          </div>
+        )}
 
         {/* Разбивка по продажникам (админ) */}
         {isAdmin && sellerFilter === 'all' && bySeller.length > 0 && (
@@ -204,6 +339,7 @@
                     <th>Сделок</th>
                     <th>Оплачено</th>
                     <th>Возвраты</th>
+                    <th>План / выполнение</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -215,6 +351,7 @@
                       <td style={{ color: s.refunds ? 'var(--om-coral)' : 'var(--om-muted)' }}>
                         {s.refunds ? fmtMoney(s.refunds) : '—'}
                       </td>
+                      <td><GoalBar paid={s.paid} goal={s.goal} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -422,6 +559,24 @@
       display: 'flex', alignItems: 'center', gap: 7, margin: '6px 0 10px',
       fontSize: 13, fontWeight: 600, color: 'var(--om-ink)',
     },
+    blockLabelRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
+    toggle: { display: 'inline-flex', gap: 4, background: 'var(--om-canvas-strong, #efe9dd)', padding: 3, borderRadius: 'var(--om-radius-pill)' },
+    toggleBtn: {
+      border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 12.5, padding: '5px 12px', borderRadius: 'var(--om-radius-pill)', color: 'var(--om-muted)',
+    },
+    toggleBtnActive: { background: 'var(--om-canvas-white)', color: 'var(--om-ink)', fontWeight: 500, boxShadow: '0 1px 3px rgba(27,24,64,0.08)' },
+    chartWrap: {
+      background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+      borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px 12px',
+    },
+    chartBars: { display: 'flex', alignItems: 'flex-end', gap: 6, height: 160, overflowX: 'auto', paddingBottom: 4 },
+    chartCol: { flex: '1 0 18px', minWidth: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
+    chartBar: { width: '100%', maxWidth: 36, background: 'var(--om-gold)', borderRadius: '6px 6px 0 0', transition: 'height .3s ease' },
+    chartX: { marginTop: 6, fontSize: 10.5, color: 'var(--om-faint)', whiteSpace: 'nowrap' },
+    chartHintRow: { display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: 'var(--om-faint)' },
+    barTrack: { height: 6, borderRadius: 3, background: 'var(--om-canvas-strong, #efe9dd)', overflow: 'hidden' },
+    barFill: { height: '100%', borderRadius: 3, transition: 'width .3s ease' },
     refundHint: {
       display: 'flex', alignItems: 'center', gap: 6, margin: '12px 0 0',
       fontSize: 12.5, color: 'var(--om-coral)',

@@ -177,7 +177,10 @@
   }
 
   function SellerModal({ item, isNew, onClose, onSave, onDelete }) {
-    const [form, setForm] = useState({ name: item.name || '', phone: item.phone || '', active: item.active !== false });
+    const [form, setForm] = useState({
+      name: item.name || '', phone: item.phone || '', active: item.active !== false,
+      monthlyGoal: item.monthlyGoal ? String(item.monthlyGoal) : '',
+    });
     // newCode: что отправим в поле code. '' = не менять (для существующего).
     const [newCode, setNewCode] = useState(isNew ? genCode() : '');
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -185,7 +188,10 @@
 
     const submit = () => {
       if (!valid) return;
-      const data = { name: form.name.trim(), phone: form.phone.trim(), active: form.active };
+      const data = {
+        name: form.name.trim(), phone: form.phone.trim(), active: form.active,
+        monthlyGoal: Number(form.monthlyGoal) || 0,
+      };
       // code: для нового всегда отправляем; для существующего — только если задали новый.
       if (isNew) data.code = newCode;
       else if (newCode) data.code = newCode;
@@ -216,6 +222,13 @@
                 <span className="om-form-label">Телефон</span>
                 <input className="om-form-input" type="text" value={form.phone}
                   onChange={e => set('phone', e.target.value)} placeholder="+7 ___ ___ __ __" />
+              </label>
+
+              <label className="om-form-field om-form-field--full">
+                <span className="om-form-label">План продаж в месяц, ₸</span>
+                <input className="om-form-input" type="number" min="0" value={form.monthlyGoal}
+                  onChange={e => set('monthlyGoal', e.target.value)} placeholder="Например, 1 500 000" />
+                <p style={ST.hint}>Цель по сумме оплаченных сделок за месяц. По ней считается прогресс в разделе «Сделки». 0 или пусто — план не задан.</p>
               </label>
 
               {/* Код входа */}

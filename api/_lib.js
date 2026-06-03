@@ -58,7 +58,7 @@ export async function getSeller(req) {
   const sql = await getSql();
   if (!sql) return null;
   const rows = await sql`
-    SELECT id, name FROM sellers
+    SELECT id, name, monthly_goal FROM sellers
     WHERE code_hash = ${hashCode(code)} AND active = true
     LIMIT 1`;
   return rows.rows[0] || null;

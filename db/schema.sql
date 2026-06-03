@@ -153,6 +153,8 @@ CREATE TABLE IF NOT EXISTS sellers (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_sellers_code ON sellers (code_hash);
+-- План продаж на месяц (₸). 0 = план не задан.
+ALTER TABLE sellers ADD COLUMN IF NOT EXISTS monthly_goal INT NOT NULL DEFAULT 0;
 
 -- Какой продажник ведёт заявку (воронка). NULL = «свободный» лид.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS assigned_seller_id TEXT;

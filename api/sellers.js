@@ -20,6 +20,7 @@ function toCanonical(r) {
     phone: r.phone || '',
     active: r.active !== false,
     hasCode: !!r.code_hash,            // задан ли код входа (сам код не отдаём)
+    monthlyGoal: r.monthly_goal || 0,  // план продаж на месяц, ₸
     sortOrder: r.sort_order || 0,
     createdAt: r.created_at,
   };
@@ -52,7 +53,7 @@ export default async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method not allowed' });
     const seller = await getSeller(req);
     if (!seller) return res.status(401).json({ ok: false, error: 'Нужна авторизация продажника' });
-    return res.status(200).json({ ok: true, data: seller });
+    return res.status(200).json({ ok: true, data: { id: seller.id, name: seller.name, monthlyGoal: seller.monthly_goal || 0 } });
   }
 
   // ── Список (только админ — это служебные данные) ──────────
@@ -79,6 +80,7 @@ export default async function handler(req, res) {
     name: String(b.name || '').trim(),
     phone: b.phone || '',
     active: b.active !== false,
+    monthlyGoal: b.monthlyGoal == null ? 0 : Math.max(0, Math.round(Number(b.monthlyGoal) || 0)),
     sortOrder: b.sortOrder == null ? 0 : Number(b.sortOrder),
   };
   if (!v.name) return res.status(422).json({ ok: false, errors: { name: 'Укажите имя' } });
@@ -88,8 +90,8 @@ export default async function handler(req, res) {
     // code при создании опционален: пусто → продажник заведён, но вход закрыт.
     const codeHash = b.code ? hashCode(String(b.code).trim()) : null;
     const ins = await sql`
-      INSERT INTO sellers (id, name, code_hash, phone, active, sort_order)
-      VALUES (${id}, ${v.name}, ${codeHash}, ${v.phone}, ${v.active}, ${v.sortOrder})
+      INSERT INTO sellers (id, name, code_hash, phone, active, monthly_goal, sort_order)
+      VALUES (${id}, ${v.name}, ${codeHash}, ${v.phone}, ${v.active}, ${v.monthlyGoal}, ${v.sortOrder})
       RETURNING *`;
     return res.status(200).json({ ok: true, data: toCanonical(ins.rows[0]) });
   }
@@ -107,11 +109,13 @@ export default async function handler(req, res) {
     const upd = codeHash === undefined
       ? await sql`
           UPDATE sellers SET
-            name = ${v.name}, phone = ${v.phone}, active = ${v.active}, sort_order = ${v.sortOrder}
+            name = ${v.name}, phone = ${v.phone}, active = ${v.active},
+            monthly_goal = ${v.monthlyGoal}, sort_order = ${v.sortOrder}
           WHERE id = ${b.id} RETURNING *`
       : await sql`
           UPDATE sellers SET
-            name = ${v.name}, phone = ${v.phone}, active = ${v.active}, sort_order = ${v.sortOrder},
+            name = ${v.name}, phone = ${v.phone}, active = ${v.active},
+            monthly_goal = ${v.monthlyGoal}, sort_order = ${v.sortOrder},
             code_hash = ${codeHash}
           WHERE id = ${b.id} RETURNING *`;
     if (!upd.rows.length) return res.status(404).json({ ok: false, error: 'Продажник не найден' });
