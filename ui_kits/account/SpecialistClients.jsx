@@ -42,14 +42,19 @@
     const [busy, setBusy] = useState(false);
     const endRef = useRef(null);
 
-    const api = (method, body, query) => fetch('/api/client-activities' + (query || ''), {
-      method,
-      headers: auth().headers({ 'Content-Type': 'application/json' }),
-      body: body ? JSON.stringify(body) : undefined,
-    }).then(r => r.json()).catch(() => null);
+    // Лента живёт в /api/clients?resource=activities (слита в clients.js ради
+    // лимита Serverless-функций Vercel Hobby = 12). params — доп. query-параметры.
+    const api = (method, body, params) => {
+      const q = new URLSearchParams(Object.assign({ resource: 'activities' }, params || {})).toString();
+      return fetch('/api/clients?' + q, {
+        method,
+        headers: auth().headers({ 'Content-Type': 'application/json' }),
+        body: body ? JSON.stringify(body) : undefined,
+      }).then(r => r.json()).catch(() => null);
+    };
 
     const load = () => {
-      api('GET', null, '?clientId=' + encodeURIComponent(clientId)).then(j => {
+      api('GET', null, { clientId }).then(j => {
         if (j && j.ok && Array.isArray(j.data)) setItems(j.data);
         setLoaded(true);
       });
@@ -68,7 +73,7 @@
     };
     const remove = (id) => {
       setItems(cur => cur.filter(a => a.id !== id));
-      api('DELETE', null, '?id=' + encodeURIComponent(id));
+      api('DELETE', null, { id });
     };
 
     const myRole = auth().role();
