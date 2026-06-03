@@ -25,6 +25,11 @@ function toCanonical(r) {
     note: r.note || '',
     assignedSellerId: r.assigned_seller_id || '',
     sellerName: r.seller_name || '',       // из JOIN ниже
+    // Последняя запись истории работы — для предпросмотра в списке лидов.
+    lastActivityText: r.last_act_text || '',
+    lastActivityType: r.last_act_type || '',
+    lastActivityAt: r.last_act_at || null,
+    activityCount: Number(r.act_count) || 0,
     createdAt: r.created_at,
   };
 }
@@ -51,9 +56,18 @@ export default async function handler(req, res) {
     const onlyMine = mine ? who.id : null;
 
     const rows = await sql`
-      SELECT r.*, s.name AS seller_name
+      SELECT r.*, s.name AS seller_name,
+             la.text AS last_act_text, la.type AS last_act_type, la.created_at AS last_act_at,
+             ac.cnt AS act_count
       FROM requests r
       LEFT JOIN sellers s ON s.id = r.assigned_seller_id
+      LEFT JOIN LATERAL (
+        SELECT text, type, created_at FROM request_activities a
+        WHERE a.request_id = r.id ORDER BY a.created_at DESC LIMIT 1
+      ) la ON true
+      LEFT JOIN LATERAL (
+        SELECT count(*)::int AS cnt FROM request_activities a WHERE a.request_id = r.id
+      ) ac ON true
       WHERE (${status}::text IS NULL OR r.status = ${status})
         AND (${onlyMine}::text IS NULL OR r.assigned_seller_id = ${onlyMine})
         AND (NOT ${free} OR r.assigned_seller_id IS NULL)

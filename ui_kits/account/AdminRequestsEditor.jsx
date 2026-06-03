@@ -117,20 +117,20 @@
       } catch (e) {}
       return DEFAULT_REQUESTS;
     });
-    // Загрузка с сервера (источник правды). Пустой ответ — реальное «заявок нет».
-    useEffect(() => {
-      let alive = true;
-      fetch(API, { headers: auth().headers() })
+    // Перезагрузка списка с сервера (источник правды). Вызывается при монтировании
+    // и после закрытия карточки — чтобы свежие записи истории/назначения попали в список.
+    const reload = React.useCallback(() => {
+      return fetch(API, { headers: auth().headers() })
         .then(r => r.ok ? r.json() : Promise.reject())
-        .then(j => { if (alive && j && j.ok && Array.isArray(j.data)) setItems(j.data); })
+        .then(j => { if (j && j.ok && Array.isArray(j.data)) setItems(j.data); })
         .catch(() => {}); // нет сервера → остаёмся на кэше / DEFAULT
-      return () => { alive = false; };
     }, []);
+    useEffect(() => { reload(); }, [reload]);
     // Кэш в localStorage — отсюда же аналитика берёт число новых заявок.
     useEffect(() => {
       try { localStorage.setItem(REQ_KEY, JSON.stringify(items)); } catch (e) {}
     }, [items]);
-    return [items, setItems];
+    return [items, setItems, reload];
   }
 
   function StatusBadge({ status }) {
@@ -150,7 +150,8 @@
   function AdminRequestsEditor() {
     const isAdmin = auth().isAdmin();
     const myId = auth().sellerId();
-    const [items, setItems] = useRequests();
+    const [items, setItems, reload] = useRequests();
+    const closeModal = () => { setEditing(null); reload(); };
     const [sellers, setSellers] = useState([]);   // для назначения (только админ)
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState('all');
@@ -227,6 +228,7 @@
         showToast('Изменения сохранены');
       }
       setEditing(null);
+      reload();   // подтянуть свежие записи истории/назначения в список
     };
 
     const handleDelete = (id) => {
@@ -325,6 +327,17 @@
                         <span>{note}</span>
                       </div>
                     )}
+
+                    {r.lastActivityText && (
+                      <div className="om-req-note" style={S.lastAct} title="Последняя запись истории работы">
+                        <LucideIcon name={actType(r.lastActivityType).icon} size={14} />
+                        <span style={S.lastActText}>{r.lastActivityText}</span>
+                        <span style={S.lastActMeta}>
+                          {fmtDateTime(r.lastActivityAt)}
+                          {r.activityCount > 1 ? ' · ' + r.activityCount + ' кас.' : ''}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="om-req-aside" onClick={e => e.stopPropagation()}>
@@ -355,7 +368,7 @@
             isAdmin={isAdmin}
             sellers={sellers}
             currentSellerId={myId}
-            onClose={() => setEditing(null)}
+            onClose={closeModal}
             onSave={handleSave}
             onDelete={handleDelete}
             onAssign={handleAssign}
@@ -689,6 +702,10 @@
     },
     actText: { fontSize: 13.5, color: 'var(--om-ink)', lineHeight: 1.45, wordBreak: 'break-word' },
     actMeta: { marginTop: 2, fontSize: 11.5, color: 'var(--om-faint)' },
+    // Строка последней активности на карточке списка
+    lastAct: { background: 'var(--om-lilac, #efeafc)', alignItems: 'center' },
+    lastActText: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    lastActMeta: { flexShrink: 0, marginLeft: 'auto', paddingLeft: 8, fontSize: 11.5, color: 'var(--om-muted)', whiteSpace: 'nowrap' },
   };
 
   window.AdminRequestsEditor = AdminRequestsEditor;
