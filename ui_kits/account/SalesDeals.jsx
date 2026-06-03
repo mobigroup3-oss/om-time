@@ -283,7 +283,12 @@
     // ── Воронка конверсии: лиды → сделки (за выбранный период) ────────
     const funnel = (() => {
       const from = periodFrom(period);
-      const scoped = leads.filter(l => !from || new Date(l.createdAt) >= from);
+      const myId = auth().sellerId && auth().sellerId();
+      const scoped = leads.filter(l =>
+        (!from || new Date(l.createdAt) >= from) &&
+        // продажник считает только взятые им лиды (без свободных), админ — все
+        (isAdmin || (l.assignedSellerId && l.assignedSellerId === myId))
+      );
       const total = scoped.length;
       const inWork = scoped.filter(l => ['contacted', 'scheduled', 'done'].includes(l.status)).length;
       const scheduled = scoped.filter(l => ['scheduled', 'done'].includes(l.status)).length;
