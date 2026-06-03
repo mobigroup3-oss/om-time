@@ -8,6 +8,53 @@
 //   DELETE /api/requests?id=…          → удалить (только админ)
 import { handlePreflight, readJson, getSql, requireStaff, isAdmin } from './_lib.js';
 
+// Лог обработки заявки (лента в карточке лида). Раньше был отдельным api/activities.js,
+// слит сюда под ?resource=activities ради лимита Serverless-функций Vercel Hobby = 12.
+const ACT_TYPES = ['call', 'whatsapp', 'meeting', 'note', 'status'];
+function actToCanonical(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    sellerId: r.seller_id || '',
+    sellerName: r.seller_name || '',
+    type: r.type || 'note',
+    text: r.text || '',
+    createdAt: r.created_at,
+  };
+}
+// who — результат requireStaff (админ/продажник). Доступ как у самих заявок.
+async function handleActivities(req, res, sql, who) {
+  if (!sql) {
+    if (req.method === 'GET') return res.status(200).json({ ok: true, data: [] });
+    return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });
+  }
+  if (req.method === 'GET') {
+    const requestId = req.query && req.query.requestId;
+    if (!requestId) return res.status(400).json({ ok: false, error: 'Нужен requestId' });
+    const rows = await sql`SELECT * FROM request_activities WHERE request_id = ${requestId} ORDER BY created_at ASC`;
+    return res.status(200).json({ ok: true, data: rows.rows.map(actToCanonical) });
+  }
+  if (req.method === 'DELETE') {
+    if (!isAdmin(req)) return res.status(403).json({ ok: false, error: 'Удалять записи может только администратор' });
+    const id = req.query && req.query.id;
+    if (!id) return res.status(400).json({ ok: false, error: 'Нужен id' });
+    await sql`DELETE FROM request_activities WHERE id = ${id}`;
+    return res.status(200).json({ ok: true });
+  }
+  // POST
+  const b = readJson(req);
+  const requestId = b.requestId == null || b.requestId === '' ? null : Number(b.requestId);
+  if (!requestId) return res.status(422).json({ ok: false, errors: { requestId: 'Нужен requestId' } });
+  const type = ACT_TYPES.includes(b.type) ? b.type : 'note';
+  const text = String(b.text || '').trim();
+  if (!text) return res.status(422).json({ ok: false, errors: { text: 'Пустая запись' } });
+  const ins = await sql`
+    INSERT INTO request_activities (request_id, seller_id, seller_name, type, text)
+    VALUES (${requestId}, ${who.id}, ${who.name}, ${type}, ${text})
+    RETURNING *`;
+  return res.status(200).json({ ok: true, data: actToCanonical(ins.rows[0]) });
+}
+
 function toCanonical(r) {
   return {
     id: r.id,
@@ -40,6 +87,10 @@ export default async function handler(req, res) {
   if (!who) return;
 
   const sql = await getSql();
+
+  // Лог обработки заявки — отдельная ветка (см. handleActivities выше).
+  if (req.query && req.query.resource === 'activities') return handleActivities(req, res, sql, who);
+
   if (!sql) {
     if (req.method === 'GET') return res.status(200).json({ ok: true, data: [] });
     return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });

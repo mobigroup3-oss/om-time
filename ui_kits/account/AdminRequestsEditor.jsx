@@ -602,7 +602,7 @@
 
     useEffect(() => {
       let alive = true;
-      apiCall('/api/activities?requestId=' + encodeURIComponent(requestId)).then(j => {
+      apiCall('/api/requests?resource=activities&requestId=' + encodeURIComponent(requestId)).then(j => {
         if (!alive) return;
         if (j && j.ok && Array.isArray(j.data)) setItems(j.data);
         setLoaded(true);
@@ -613,7 +613,7 @@
     const add = () => {
       if (!text.trim() || busy) return;
       setBusy(true);
-      apiCall('/api/activities', 'POST', { requestId, type, text: text.trim() }).then(j => {
+      apiCall('/api/requests?resource=activities', 'POST', { requestId, type, text: text.trim() }).then(j => {
         setBusy(false);
         if (j && j.ok && j.data) { setItems(cur => [...cur, j.data]); setText(''); }
         else showToast((j && j.error) || 'Не удалось добавить запись');
