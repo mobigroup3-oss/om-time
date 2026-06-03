@@ -1,7 +1,8 @@
-// SalesDeals.jsx — закрытые сделки. Общий экран для двух ролей (см. /api/deals):
-//   • продажник видит и заводит ТОЛЬКО свои сделки;
-//   • администратор видит ВСЕ сделки, фильтрует по продажнику, видит итоги —
-//     это и есть контроль работы отдела продаж.
+// SalesDeals.jsx — закрытые сделки + аналитика продаж. Экран для двух ролей (см. /api/deals):
+//   • продажник видит/заводит/правит ТОЛЬКО свои сделки;
+//   • администратор видит ВСЕ сделки, фильтрует по продажнику и периоду, видит
+//     сводку (оплачено, средний чек, возвраты) и разбивку по продажникам —
+//     это контроль работы отдела продаж (кто, сколько, когда, на какую сумму).
 // Источник правды — /api/deals. Общие классы дизайн-системы кабинета.
 
 (function () {
@@ -18,7 +19,6 @@
     }).then(r => r.json()).catch(() => null);
   }
 
-  // Программы синхронны с booking.html / api/deals.js.
   const PROGRAMS = [
     { id: 'flagship-offline', title: 'Вес идеальности' },
     { id: 'flagship-online',  title: 'Вес идеальности ONLINE' },
@@ -35,6 +35,21 @@
   ];
   const statusInfo = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
 
+  // Периоды для фильтра аналитики. Возвращаем дату начала (конец = сейчас).
+  const PERIODS = [
+    { id: 'all',     label: 'Всё время' },
+    { id: 'month',   label: 'Текущий месяц' },
+    { id: 'quarter', label: 'Текущий квартал' },
+    { id: 'year',    label: 'Текущий год' },
+  ];
+  function periodFrom(p) {
+    const now = new Date(); const y = now.getFullYear(); const m = now.getMonth();
+    if (p === 'month')   return new Date(y, m, 1);
+    if (p === 'quarter') return new Date(y, Math.floor(m / 3) * 3, 1);
+    if (p === 'year')    return new Date(y, 0, 1);
+    return null;
+  }
+
   const fmtMoney = (n) => (Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
   const fmtDate = (iso) => {
     if (!iso) return '—';
@@ -48,28 +63,41 @@
     return <span className={'om-tag-mini om-tag-mini--' + s.tone}>{s.label}</span>;
   }
 
+  function StatCard({ label, value, hint }) {
+    return (
+      <div style={ST.stat}>
+        <div style={ST.statValue}>{value}</div>
+        <div style={ST.statLabel}>{label}</div>
+        {hint && <div style={ST.statHint}>{hint}</div>}
+      </div>
+    );
+  }
+
   function SalesDeals() {
     const isAdmin = auth().isAdmin();
     const [items, setItems] = useState([]);
-    const [sellers, setSellers] = useState([]);    // для фильтра/выбора (только админ)
+    const [sellers, setSellers] = useState([]);
     const [loaded, setLoaded] = useState(false);
     const [sellerFilter, setSellerFilter] = useState('all');
-    const [editing, setEditing] = useState(null);  // 'new' | null (правка сделок — отдельно, пока создание)
+    const [period, setPeriod] = useState('all');
+    const [editing, setEditing] = useState(null);   // 'new' | deal.id | null
     const [toast, setToast] = useState(null);
 
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
 
     const load = () => {
-      const q = isAdmin && sellerFilter !== 'all' ? '?seller=' + encodeURIComponent(sellerFilter) : '';
+      const params = [];
+      if (isAdmin && sellerFilter !== 'all') params.push('seller=' + encodeURIComponent(sellerFilter));
+      const from = periodFrom(period);
+      if (from) params.push('from=' + encodeURIComponent(from.toISOString()));
+      const q = params.length ? '?' + params.join('&') : '';
       api('GET', null, q).then(j => {
         if (j && j.ok && Array.isArray(j.data)) setItems(j.data);
         setLoaded(true);
       });
     };
+    useEffect(() => { load(); }, [sellerFilter, period]);
 
-    useEffect(() => { load(); }, [sellerFilter]);
-
-    // Список продажников для фильтра и выбора в форме — только админу.
     useEffect(() => {
       if (!isAdmin) return;
       fetch('/api/sellers', { headers: auth().headers() })
@@ -78,21 +106,50 @@
         .catch(() => {});
     }, []);
 
-    const total = items.filter(d => d.status === 'won').reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    // ── Сводка за период ──────────────────────────────────────
+    const won = items.filter(d => d.status === 'won');
+    const refunded = items.filter(d => d.status === 'refunded');
+    const paidTotal = won.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const refundTotal = refunded.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const avg = won.length ? Math.round(paidTotal / won.length) : 0;
 
-    const handleSave = (data) => {
-      api('POST', data).then(j => {
-        if (j && j.ok && j.data) { setItems(cur => [j.data, ...cur]); showToast('Сделка добавлена'); }
-        else showToast((j && j.error) || 'Не удалось сохранить');
+    // Разбивка по продажникам (только админ, когда выбраны все).
+    const bySeller = [];
+    if (isAdmin && sellerFilter === 'all') {
+      const map = {};
+      items.forEach(d => {
+        const key = d.sellerId || '—';
+        if (!map[key]) map[key] = { name: d.sellerName || 'Не указан', won: 0, paid: 0, refunds: 0 };
+        if (d.status === 'won') { map[key].won += 1; map[key].paid += Number(d.amount) || 0; }
+        else map[key].refunds += Number(d.amount) || 0;
       });
+      Object.keys(map).forEach(k => bySeller.push(map[k]));
+      bySeller.sort((a, b) => b.paid - a.paid);
+    }
+
+    const handleSave = (data, id) => {
+      if (id) {
+        api('PUT', { ...data, id }).then(j => {
+          if (j && j.ok && j.data) { setItems(cur => cur.map(d => (d.id === id ? j.data : d))); showToast('Сделка обновлена'); }
+          else showToast((j && j.error) || 'Не удалось сохранить');
+        });
+      } else {
+        api('POST', data).then(j => {
+          if (j && j.ok && j.data) { setItems(cur => [j.data, ...cur]); showToast('Сделка добавлена'); }
+          else showToast((j && j.error) || 'Не удалось сохранить');
+        });
+      }
       setEditing(null);
     };
 
     const handleDelete = (id) => {
       setItems(cur => cur.filter(d => d.id !== id));
       api('DELETE', null, '?id=' + encodeURIComponent(id));
+      setEditing(null);
       showToast('Сделка удалена');
     };
+
+    const editingDeal = editing && editing !== 'new' ? items.find(d => d.id === editing) : null;
 
     return (
       <React.Fragment>
@@ -102,9 +159,8 @@
             <h1 className="om-acc-title">{isAdmin ? 'Сделки' : 'Мои сделки'}</h1>
             <p className="om-acc-sub">
               {isAdmin
-                ? 'Закрытые продажи по всем менеджерам. Сумма оплаченных за период.'
+                ? 'Закрытые продажи по всем менеджерам: кто, когда и на какую сумму.'
                 : 'Ваши закрытые продажи.'}
-              {items.length > 0 && ` Оплачено: ${fmtMoney(total)}.`}
             </p>
           </div>
           <button className="om-btn om-btn--primary" onClick={() => setEditing('new')}>
@@ -113,23 +169,70 @@
           </button>
         </div>
 
-        {isAdmin && (
-          <div className="om-adm-toolbar">
+        {/* Фильтры: период (всем) + продажник (админу) */}
+        <div className="om-adm-toolbar">
+          <select className="om-adm-select" value={period} onChange={e => setPeriod(e.target.value)}>
+            {PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          {isAdmin && (
             <select className="om-adm-select" value={sellerFilter} onChange={e => setSellerFilter(e.target.value)}>
               <option value="all">Все продажники</option>
               {sellers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+          )}
+        </div>
+
+        {/* Сводка за период */}
+        <div style={ST.statRow}>
+          <StatCard label="Оплачено" value={fmtMoney(paidTotal)} hint={`${won.length} сделок`} />
+          <StatCard label="Средний чек" value={fmtMoney(avg)} />
+          <StatCard label="Сделок" value={won.length} />
+          {(isAdmin || refundTotal > 0) && (
+            <StatCard label="Возвраты" value={fmtMoney(refundTotal)} hint={refunded.length ? `${refunded.length} шт.` : '—'} />
+          )}
+        </div>
+
+        {/* Разбивка по продажникам (админ) */}
+        {isAdmin && sellerFilter === 'all' && bySeller.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={ST.blockLabel}><LucideIcon name="users" size={15} /> По продажникам</div>
+            <div className="om-adm-table-wrap">
+              <table className="om-adm-table">
+                <thead>
+                  <tr>
+                    <th>Продажник</th>
+                    <th>Сделок</th>
+                    <th>Оплачено</th>
+                    <th>Возвраты</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bySeller.map((s, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 500, color: 'var(--om-ink)' }}>{s.name}</td>
+                      <td>{s.won}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--om-ink)' }}>{fmtMoney(s.paid)}</td>
+                      <td style={{ color: s.refunds ? 'var(--om-coral)' : 'var(--om-muted)' }}>
+                        {s.refunds ? fmtMoney(s.refunds) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
+        {/* Список сделок */}
+        {isAdmin && <div style={ST.blockLabel}><LucideIcon name="list" size={15} /> Все сделки</div>}
         {loaded && items.length === 0 ? (
           <div className="om-adm-table-wrap">
             <div className="om-adm-empty">
               <LucideIcon name="handshake" size={36} style={{ marginBottom: 12, opacity: 0.45 }} />
               <div style={{ fontSize: 15, color: 'var(--om-ink)', fontWeight: 500, marginBottom: 4 }}>
-                Сделок пока нет
+                Сделок за период нет
               </div>
-              <div style={{ fontSize: 13 }}>Закрытые продажи появятся здесь.</div>
+              <div style={{ fontSize: 13 }}>Измените период или закройте сделку из карточки лида.</div>
             </div>
           </div>
         ) : (
@@ -148,7 +251,7 @@
               </thead>
               <tbody>
                 {items.map(d => (
-                  <tr key={d.id}>
+                  <tr key={d.id} onClick={() => setEditing(d.id)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div style={{ fontWeight: 500, color: 'var(--om-ink)' }}>{d.clientName}</div>
                       {d.clientPhone && <div style={{ fontSize: 12, color: 'var(--om-muted)' }}>{d.clientPhone}</div>}
@@ -158,7 +261,7 @@
                     {isAdmin && <td style={{ color: 'var(--om-muted)' }}>{d.sellerName || '—'}</td>}
                     <td><StatusBadge status={d.status} /></td>
                     <td style={{ color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{fmtDate(d.closedAt)}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td onClick={e => e.stopPropagation()} style={{ textAlign: 'right' }}>
                       {isAdmin && (
                         <button className="om-adm-icon-btn" data-danger="true" title="Удалить"
                           onClick={() => handleDelete(d.id)}>
@@ -173,13 +276,15 @@
           </div>
         )}
 
-        {editing === 'new' && (
+        {(editing === 'new' || editingDeal) && (
           <DealModal
+            key={editing}
+            deal={editingDeal}
+            isAdmin={isAdmin}
             sellers={isAdmin ? sellers : null}
-            programs={PROGRAMS}
-            statuses={STATUSES}
             onClose={() => setEditing(null)}
             onSave={handleSave}
+            onDelete={isAdmin ? handleDelete : null}
           />
         )}
 
@@ -188,10 +293,18 @@
     );
   }
 
-  function DealModal({ sellers, programs, statuses, onClose, onSave }) {
+  // Модалка создания И редактирования сделки.
+  function DealModal({ deal, isAdmin, sellers, onClose, onSave, onDelete }) {
+    const isEdit = !!deal;
     const [form, setForm] = useState({
-      clientName: '', clientPhone: '', programId: 'flagship-offline',
-      amount: '', status: 'won', sellerId: '', closedAt: todayISO(), note: '',
+      clientName: deal ? deal.clientName : '',
+      clientPhone: deal ? deal.clientPhone : '',
+      programId: deal ? (deal.programId || 'flagship-offline') : 'flagship-offline',
+      amount: deal ? String(deal.amount || '') : '',
+      status: deal ? deal.status : 'won',
+      sellerId: deal ? (deal.sellerId || '') : '',
+      closedAt: deal ? (deal.closedAt ? deal.closedAt.slice(0, 10) : todayISO()) : todayISO(),
+      note: deal ? (deal.note || '') : '',
     });
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
     const valid = form.clientName.trim().length > 0;
@@ -203,18 +316,18 @@
         programId: form.programId,
         amount: Number(form.amount) || 0,
         status: form.status,
-        closedAt: form.closedAt,
         note: form.note.trim(),
       };
-      if (sellers) data.sellerId = form.sellerId || null;  // админ может назначить продажника
-      onSave(data);
+      if (!isEdit) data.closedAt = form.closedAt;   // дату закрытия задаём при создании
+      if (sellers) data.sellerId = form.sellerId || null;
+      onSave(data, isEdit ? deal.id : null);
     };
 
     return (
       <div className="om-modal-backdrop" onClick={onClose}>
         <div className="om-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
           <div className="om-modal-head">
-            <h2 className="om-modal-title">Новая сделка</h2>
+            <h2 className="om-modal-title">{isEdit ? 'Сделка' : 'Новая сделка'}</h2>
             <button className="om-modal-close" onClick={onClose}><LucideIcon name="x" size={18} /></button>
           </div>
 
@@ -233,7 +346,7 @@
               <label className="om-form-field">
                 <span className="om-form-label">Программа</span>
                 <select className="om-form-select" value={form.programId} onChange={e => set('programId', e.target.value)}>
-                  {programs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  {PROGRAMS.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </label>
               <label className="om-form-field">
@@ -253,23 +366,36 @@
               <label className="om-form-field">
                 <span className="om-form-label">Статус</span>
                 <select className="om-form-select" value={form.status} onChange={e => set('status', e.target.value)}>
-                  {statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                 </select>
               </label>
               <label className="om-form-field">
                 <span className="om-form-label">Дата закрытия</span>
                 <input className="om-form-input" type="date" value={form.closedAt}
-                  onChange={e => set('closedAt', e.target.value)} />
+                  disabled={isEdit}
+                  onChange={e => set('closedAt', e.target.value)}
+                  style={isEdit ? { opacity: 0.6 } : null} />
               </label>
               <label className="om-form-field om-form-field--full">
                 <span className="om-form-label">Комментарий</span>
                 <textarea className="om-form-textarea" value={form.note}
-                  onChange={e => set('note', e.target.value)} placeholder="Скидка, рассрочка, детали" />
+                  onChange={e => set('note', e.target.value)} placeholder="Скидка, рассрочка, причина возврата" />
               </label>
             </div>
+            {isEdit && form.status === 'refunded' && (
+              <p style={ST.refundHint}>
+                <LucideIcon name="alert-triangle" size={14} /> Сделка помечена как возврат — её сумма не войдёт в «Оплачено».
+              </p>
+            )}
           </div>
 
           <div className="om-modal-foot">
+            {isEdit && onDelete && (
+              <button style={ST.deleteBtn} onClick={() => onDelete(deal.id)}>
+                <LucideIcon name="trash-2" size={15} style={{ marginRight: 6 }} />
+                Удалить
+              </button>
+            )}
             <button className="om-btn om-btn--secondary" onClick={onClose}>Отмена</button>
             <button className="om-btn om-btn--primary" disabled={!valid}
               style={{ opacity: valid ? 1 : 0.5, pointerEvents: valid ? 'auto' : 'none' }}
@@ -281,6 +407,32 @@
       </div>
     );
   }
+
+  const ST = {
+    statRow: { display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 22 },
+    stat: {
+      flex: '1 1 160px', minWidth: 140,
+      background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+      borderRadius: 'var(--om-radius-lg, 16px)', padding: '16px 18px',
+    },
+    statValue: { fontSize: 22, fontWeight: 600, color: 'var(--om-ink)', lineHeight: 1.1 },
+    statLabel: { marginTop: 6, fontSize: 12.5, color: 'var(--om-muted)' },
+    statHint: { marginTop: 2, fontSize: 11.5, color: 'var(--om-faint)' },
+    blockLabel: {
+      display: 'flex', alignItems: 'center', gap: 7, margin: '6px 0 10px',
+      fontSize: 13, fontWeight: 600, color: 'var(--om-ink)',
+    },
+    refundHint: {
+      display: 'flex', alignItems: 'center', gap: 6, margin: '12px 0 0',
+      fontSize: 12.5, color: 'var(--om-coral)',
+    },
+    deleteBtn: {
+      marginRight: 'auto', display: 'inline-flex', alignItems: 'center',
+      padding: '12px 16px', border: 'none', borderRadius: 'var(--om-radius-pill)',
+      background: 'transparent', color: 'var(--om-danger)',
+      fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+    },
+  };
 
   window.SalesDeals = SalesDeals;
 })();
