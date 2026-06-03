@@ -55,24 +55,32 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
-  <!-- Экран входа администратора. Пароль = ADMIN_TOKEN на сервере; шлётся в
-       заголовке x-admin-token при изменениях. Минимальная защита (не полноценная
-       пользовательская авторизация — см. DEPLOY.md). -->
+  <!-- Экран входа. Принимает пароль администратора (= ADMIN_TOKEN, заголовок
+       x-admin-token) ИЛИ личный код продажника (заголовок x-seller-token).
+       Роль определяется автоматически и сохраняется на сессию. Минимальная
+       защита (не полноценная пользовательская авторизация — см. DEPLOY.md). -->
   <div id="om-gate" class="om-gate">
     <form id="om-gate-form" class="om-gate-card">
       <div class="om-gate-brand">OM&nbsp;Time</div>
-      <h1 class="om-gate-title">Вход в кабинет администратора</h1>
-      <p class="om-gate-sub">Введите пароль администратора — он защищает изменения программ, команды, расписания и карусели на сайте.</p>
-      <input id="om-gate-input" class="om-gate-input" type="password" autocomplete="current-password" placeholder="Пароль администратора" />
+      <h1 class="om-gate-title">Вход в кабинет</h1>
+      <p class="om-gate-sub">Администратор — введите пароль. Продажник — введите свой личный код входа.</p>
+      <input id="om-gate-input" class="om-gate-input" type="password" autocomplete="current-password" placeholder="Пароль администратора или код продажника" />
       <div id="om-gate-error" class="om-gate-error" hidden></div>
       <button type="submit" class="om-gate-btn">Войти</button>
-      <p class="om-gate-hint">Пароль задаётся переменной окружения <code>ADMIN_TOKEN</code> на сервере. Без сервера (локальный просмотр) вход открыт.</p>
+      <p class="om-gate-hint">Пароль администратора задаётся переменной <code>ADMIN_TOKEN</code> на сервере. Коды продажникам выдаёт администратор в разделе «Продажники». Без сервера (локальный просмотр) вход открыт как администратор.</p>
     </form>
   </div>
 
   <script>
     (function () {
-      var KEY = 'omtime.admin.token';
+      // Ключи сессии. Роль определяет, что видно в кабинете и какой заголовок шлём.
+      var K = {
+        role: 'omtime.role',
+        admin: 'omtime.admin.token',
+        sellerTok: 'omtime.seller.token',
+        sellerId: 'omtime.seller.id',
+        sellerName: 'omtime.seller.name',
+      };
       var gate  = document.getElementById('om-gate');
       var form  = document.getElementById('om-gate-form');
       var input = document.getElementById('om-gate-input');
@@ -80,31 +88,59 @@
 
       function hide() { gate.style.display = 'none'; }
       function showError(msg) { errBox.textContent = msg; errBox.hidden = false; }
-      function getToken() { try { return sessionStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
-      function setToken(t) { try { sessionStorage.setItem(KEY, t); } catch (e) {} }
-      function clearToken() { try { sessionStorage.removeItem(KEY); } catch (e) {} }
+      function ss(k)      { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } }
+      function ssSet(k,v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+      function clearAll() { Object.keys(K).forEach(function (n) { try { sessionStorage.removeItem(K[n]); } catch (e) {} }); }
 
-      // Проверка токена. /api/requests — единственный GET, требующий admin:
-      // 401 → неверный пароль; 200 → ок; 503/сеть → сервер не настроен/нет сервера (пускаем).
-      function verify(t) {
+      // Проверка пароля администратора. /api/requests требует персонал:
+      // 401 → не админ; 200 → ок; сеть/недоступно → 'offline' (нет сервера — пускаем как админа).
+      function verifyAdmin(t) {
         return fetch('/api/requests', { headers: { 'x-admin-token': t } })
           .then(function (r) { return r.status === 401 ? 'bad' : 'ok'; })
           .catch(function () { return 'offline'; });
       }
+      // Вход продажника по личному коду. Возвращает {id,name} или null.
+      function loginSeller(code) {
+        return fetch('/api/sellers?action=login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        }).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { return (j && j.ok && j.data) ? j.data : null; })
+          .catch(function () { return null; });
+      }
 
       // Уже авторизован в этой сессии — тихо пропускаем.
-      if (getToken()) { hide(); }
+      if (ss(K.role)) { hide(); }
       else { input.focus(); }
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
-        var t = input.value.trim();
-        if (!t) { showError('Введите пароль'); return; }
+        var val = input.value.trim();
+        if (!val) { showError('Введите пароль или код'); return; }
         errBox.hidden = true;
-        setToken(t);
-        verify(t).then(function (res) {
-          if (res === 'bad') { clearToken(); showError('Неверный пароль'); input.select(); }
-          else { hide(); } // ok / offline
+
+        verifyAdmin(val).then(function (res) {
+          if (res === 'ok' || res === 'offline') {
+            clearAll();
+            ssSet(K.role, 'admin');
+            ssSet(K.admin, val);
+            hide();
+            return;
+          }
+          // Не админ — пробуем как код продажника.
+          loginSeller(val).then(function (seller) {
+            if (seller) {
+              clearAll();
+              ssSet(K.role, 'seller');
+              ssSet(K.sellerTok, val);
+              ssSet(K.sellerId, seller.id);
+              ssSet(K.sellerName, seller.name);
+              hide();
+            } else {
+              showError('Неверный пароль или код'); input.select();
+            }
+          });
         });
       });
     })();
@@ -119,6 +155,8 @@
   <script type="text/babel" src="AdminProgramsEditor.jsx"></script>
   <script type="text/babel" src="AdminTeamEditor.jsx"></script>
   <script type="text/babel" src="AdminRequestsEditor.jsx"></script>
+  <script type="text/babel" src="AdminSellersEditor.jsx"></script>
+  <script type="text/babel" src="SalesDeals.jsx"></script>
   <script type="text/babel" src="MyBookingsView.jsx"></script>
   <script type="text/babel" src="ProfileView.jsx"></script>
 

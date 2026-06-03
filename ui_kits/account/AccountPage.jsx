@@ -1,6 +1,33 @@
 /* AccountPage.jsx — каркас личного кабинета OM Time.
-   Боковая навигация + переключение разделов. Расписание управляется
-   из AdminScheduleEditor. Остальные разделы — заглушки макета. */
+   Боковая навигация + переключение разделов. Состав навигации зависит от роли
+   (администратор / продажник) — роль определяется на входе (см. account.html).
+   Расписание управляется из AdminScheduleEditor. */
+
+// ── Авторизация и роль (единая точка для всех компонентов кабинета) ──
+// Заполняется экраном входа в account.html. Компоненты берут заголовки отсюда:
+//   fetch(url, { headers: window.omAuth.headers({ 'Content-Type': 'application/json' }) })
+// Админу уходит x-admin-token, продажнику — x-seller-token; сервер (requireStaff)
+// сам разбирает роль. Шлём оба, если оба есть — лишний заголовок не мешает.
+window.omAuth = {
+  _get(k) { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } },
+  role()        { return this._get('omtime.role') || 'admin'; },
+  isAdmin()     { return this.role() === 'admin'; },
+  adminToken()  { return this._get('omtime.admin.token'); },
+  sellerToken() { return this._get('omtime.seller.token'); },
+  sellerId()    { return this._get('omtime.seller.id'); },
+  sellerName()  { return this._get('omtime.seller.name'); },
+  headers(extra) {
+    const h = Object.assign({}, extra || {});
+    const a = this.adminToken(); if (a) h['x-admin-token'] = a;
+    const s = this.sellerToken(); if (s) h['x-seller-token'] = s;
+    return h;
+  },
+  logout() {
+    ['omtime.role', 'omtime.admin.token', 'omtime.seller.token', 'omtime.seller.id', 'omtime.seller.name']
+      .forEach(k => { try { sessionStorage.removeItem(k); } catch (e) {} });
+    location.reload();
+  },
+};
 
 function LucideIcon({ name, size, style: extraStyle }) {
   const ref = React.useRef(null);
@@ -19,23 +46,47 @@ function LucideIcon({ name, size, style: extraStyle }) {
 }
 window.LucideIcon = LucideIcon;
 
-const NAV_ITEMS = [
+// Навигация администратора — полный доступ.
+const NAV_ADMIN = [
   { group: 'Управление', items: [
-    { id: 'analytics', label: 'Аналитика',     icon: 'bar-chart-3',   adminOnly: true },
-    { id: 'schedule',  label: 'Расписание',    icon: 'calendar-days', adminOnly: true },
-    { id: 'carousel',  label: 'Карусель Hero', icon: 'image',         adminOnly: true },
-    { id: 'programs',  label: 'Программы',     icon: 'layout-grid',   adminOnly: true },
-    { id: 'team',      label: 'Команда',       icon: 'users-round',   adminOnly: true },
-    { id: 'requests',  label: 'Заявки',        icon: 'inbox',         adminOnly: true },
+    { id: 'analytics', label: 'Аналитика',     icon: 'bar-chart-3'   },
+    { id: 'schedule',  label: 'Расписание',    icon: 'calendar-days' },
+    { id: 'carousel',  label: 'Карусель Hero', icon: 'image'         },
+    { id: 'programs',  label: 'Программы',     icon: 'layout-grid'   },
+    { id: 'team',      label: 'Команда',       icon: 'users-round'   },
+  ]},
+  { group: 'Продажи', items: [
+    { id: 'requests',  label: 'Заявки',      icon: 'inbox'        },
+    { id: 'sellers',   label: 'Продажники',  icon: 'user-round-cog' },
+    { id: 'deals',     label: 'Сделки',      icon: 'handshake'    },
   ]},
   { group: 'Личное', items: [
-    { id: 'bookings',  label: 'Мои записи',  icon: 'bookmark' },
+    { id: 'bookings',  label: 'Мои записи',  icon: 'bookmark'    },
+    { id: 'profile',   label: 'Профиль',     icon: 'user-round'  },
+  ]},
+];
+
+// Навигация продажника — только своя воронка и сделки.
+const NAV_SELLER = [
+  { group: 'Продажи', items: [
+    { id: 'requests',  label: 'Лиды',        icon: 'inbox'      },
+    { id: 'deals',     label: 'Мои сделки',  icon: 'handshake'  },
+  ]},
+  { group: 'Личное', items: [
     { id: 'profile',   label: 'Профиль',     icon: 'user-round' },
   ]},
 ];
 
+const initials = (name) => {
+  const p = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return 'OM';
+  return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
+};
+
 function AccountPage() {
-  const [section, setSection] = React.useState('analytics');
+  const isAdmin = window.omAuth.isAdmin();
+  const nav = isAdmin ? NAV_ADMIN : NAV_SELLER;
+  const [section, setSection] = React.useState(isAdmin ? 'analytics' : 'requests');
   const [eventsCount, setEventsCount] = React.useState(null);
 
   // Подхватываем количество событий из редактора расписания через окно
@@ -44,14 +95,22 @@ function AccountPage() {
     return () => { delete window.__omSetEventsCount; };
   }, []);
 
+  const userName = isAdmin ? 'Администратор' : (window.omAuth.sellerName() || 'Продажник');
+  const userRole = isAdmin ? 'администратор' : 'продажник';
 
   function renderSection() {
+    // Защита от прямого доступа продажника к админ-разделам.
+    const adminOnly = ['analytics', 'schedule', 'carousel', 'programs', 'team', 'sellers', 'bookings'];
+    if (!isAdmin && adminOnly.includes(section)) return <ProfileView />;
+
     if (section === 'analytics') return <AdminAnalytics />;
     if (section === 'schedule')  return <AdminScheduleEditor />;
     if (section === 'carousel')  return <AdminHeroCarousel />;
     if (section === 'programs')  return <AdminProgramsEditor />;
     if (section === 'team')      return <AdminTeamEditor />;
     if (section === 'requests')  return <AdminRequestsEditor />;
+    if (section === 'sellers')   return <AdminSellersEditor />;
+    if (section === 'deals')     return <SalesDeals />;
     if (section === 'bookings')  return <MyBookingsView />;
     if (section === 'profile')   return <ProfileView />;
     return <PlaceholderSection id={section} />;
@@ -69,14 +128,14 @@ function AccountPage() {
         </a>
 
         <div className="om-acc-user">
-          <div className="om-acc-user-avatar">ТП</div>
+          <div className="om-acc-user-avatar">{initials(userName)}</div>
           <div>
-            <div className="om-acc-user-name">Татьяна Педас</div>
-            <div className="om-acc-user-role">администратор</div>
+            <div className="om-acc-user-name">{userName}</div>
+            <div className="om-acc-user-role">{userRole}</div>
           </div>
         </div>
 
-        {NAV_ITEMS.map(group => (
+        {nav.map(group => (
           <div className="om-acc-nav" key={group.group}>
             <div className="om-acc-nav-label">{group.group}</div>
             {group.items.map(it => (
@@ -100,7 +159,7 @@ function AccountPage() {
             <LucideIcon name="arrow-left" size={14} />
             На сайт
           </a>
-          <a href="#logout" onClick={(e) => e.preventDefault()}>
+          <a href="#logout" onClick={(e) => { e.preventDefault(); window.omAuth.logout(); }}>
             <LucideIcon name="log-out" size={14} />
             Выйти
           </a>

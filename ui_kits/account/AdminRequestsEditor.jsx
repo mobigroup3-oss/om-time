@@ -9,14 +9,36 @@
 
   const REQ_KEY = 'omtime.requests.v1'; // кэш для аналитики / fallback без сервера
   const API = '/api/requests';
-  const adminToken = () => { try { return sessionStorage.getItem('omtime.admin.token') || ''; } catch (e) { return ''; } };
+  // Заголовки берём из omAuth — работает и для админа (x-admin-token),
+  // и для продажника (x-seller-token). Сервер (requireStaff) выберет роль.
+  const auth = () => window.omAuth;
   function apiWrite(method, body, query) {
     return fetch(API + (query || ''), {
       method,
-      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken() },
+      headers: auth().headers({ 'Content-Type': 'application/json' }),
       body: body ? JSON.stringify(body) : undefined,
     }).then(r => r.json()).catch(() => null);
   }
+  // Доп. эндпоинты CRM (лента активности, сделки) — те же ролевые заголовки.
+  function apiCall(url, method, body) {
+    return fetch(url, {
+      method: method || 'GET',
+      headers: auth().headers({ 'Content-Type': 'application/json' }),
+      body: body ? JSON.stringify(body) : undefined,
+    }).then(r => r.json()).catch(() => null);
+  }
+  // Лид сохранён в БД (числовой id) — только тогда доступны лента и закрытие сделки.
+  const isPersisted = (id) => /^\d+$/.test(String(id));
+
+  // Типы записей в истории работы с лидом (синхронно с api/activities.js).
+  const ACT_TYPES = [
+    { id: 'call',     label: 'Звонок',   icon: 'phone-call' },
+    { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle' },
+    { id: 'meeting',  label: 'Встреча',  icon: 'users' },
+    { id: 'note',     label: 'Заметка',  icon: 'sticky-note' },
+    { id: 'status',   label: 'Статус',   icon: 'flag' },
+  ];
+  const actType = (id) => ACT_TYPES.find(t => t.id === id) || ACT_TYPES[3];
 
   // Программы синхронны с публичной booking.html (BOOKING_PROGRAMS).
   const PROGRAMS = [
@@ -65,6 +87,19 @@
     return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
   };
   const todayISO = () => new Date().toISOString().slice(0, 10);
+  const fmtDateTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
+  const fmtMoney = (n) => (Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
+
+  // Программы → дефолтная сумма сделки (₸). Подставляется в форму закрытия.
+  const PROGRAM_PRICE = {
+    'flagship-offline': 350000, 'flagship-online': 250000,
+    club: 60000, teen: 180000, detox: 90000, consult: 0,
+  };
 
   const DEFAULT_REQUESTS = [
     { id: 'r1', name: 'Айгерим Сапарова', phone: '+7 701 234 56 78', programId: 'flagship-offline', channel: 'form', createdAt: '2025-10-28', status: 'new', note: 'Спрашивает про рассрочку.' },
@@ -85,7 +120,7 @@
     // Загрузка с сервера (источник правды). Пустой ответ — реальное «заявок нет».
     useEffect(() => {
       let alive = true;
-      fetch(API, { headers: { 'x-admin-token': adminToken() } })
+      fetch(API, { headers: auth().headers() })
         .then(r => r.ok ? r.json() : Promise.reject())
         .then(j => { if (alive && j && j.ok && Array.isArray(j.data)) setItems(j.data); })
         .catch(() => {}); // нет сервера → остаёмся на кэше / DEFAULT
@@ -113,7 +148,10 @@
   }
 
   function AdminRequestsEditor() {
+    const isAdmin = auth().isAdmin();
+    const myId = auth().sellerId();
     const [items, setItems] = useRequests();
+    const [sellers, setSellers] = useState([]);   // для назначения (только админ)
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState('all');
     const [editing, setEditing] = useState(null);
@@ -122,6 +160,29 @@
     const showToast = (msg) => {
       setToast(msg);
       setTimeout(() => setToast(null), 2200);
+    };
+
+    // Список продажников нужен админу: фильтр и назначение ответственного.
+    useEffect(() => {
+      if (!isAdmin) return;
+      apiCall('/api/sellers', 'GET').then(j => {
+        if (j && j.ok && Array.isArray(j.data)) setSellers(j.data);
+      });
+    }, [isAdmin]);
+
+    // Назначить/снять ответственного. Админ — любого; продажник — взять на себя.
+    const handleAssign = (id, sellerId) => {
+      const cur = items.find(i => i.id === id);
+      if (!cur) return;
+      const sName = sellerId
+        ? (sellerId === myId ? auth().sellerName() : ((sellers.find(s => s.id === sellerId) || {}).name || ''))
+        : '';
+      const updated = { ...cur, assignedSellerId: sellerId || '', sellerName: sName };
+      setItems(items.map(i => (i.id === id ? updated : i)));
+      apiWrite('PUT', updated).then(j => {
+        if (j && j.ok && j.data) setItems(c => c.map(i => (i.id === id ? j.data : i)));
+      });
+      showToast(sellerId ? 'Лид назначен' : 'Назначение снято');
     };
 
     const blank = {
@@ -152,7 +213,15 @@
         });
         showToast('Заявка добавлена');
       } else {
-        const updated = { ...items.find(i => i.id === editing), ...data, id: editing };
+        // Назначение продажника живёт в карточке (AssignControl) и могло
+        // измениться уже после открытия формы — берём его из актуального item,
+        // а не из формы, чтобы сохранение не затёрло свежее назначение.
+        const live = items.find(i => i.id === editing) || {};
+        const updated = {
+          ...live, ...data, id: editing,
+          assignedSellerId: live.assignedSellerId || '',
+          sellerName: live.sellerName || '',
+        };
         setItems(items.map(i => (i.id === editing ? updated : i)));
         apiWrite('PUT', updated);
         showToast('Изменения сохранены');
@@ -244,6 +313,10 @@
                         <LucideIcon name="calendar" size={14} />
                         {fmtDate(r.createdAt)}
                       </span>
+                      <span className="om-req-meta-item" style={{ color: r.sellerName ? 'var(--om-indigo)' : 'var(--om-faint)' }}>
+                        <LucideIcon name={r.sellerName ? 'user-round-check' : 'user-round'} size={14} />
+                        {r.sellerName || 'свободный'}
+                      </span>
                     </div>
 
                     {note && (
@@ -279,9 +352,14 @@
             key={editing}
             item={editingItem}
             isNew={editing === 'new'}
+            isAdmin={isAdmin}
+            sellers={sellers}
+            currentSellerId={myId}
             onClose={() => setEditing(null)}
             onSave={handleSave}
             onDelete={handleDelete}
+            onAssign={handleAssign}
+            showToast={showToast}
           />
         )}
 
@@ -295,15 +373,16 @@
     );
   }
 
-  function RequestModal({ item, isNew, onClose, onSave, onDelete }) {
+  function RequestModal({ item, isNew, isAdmin, sellers, currentSellerId, onClose, onSave, onDelete, onAssign, showToast }) {
     const [form, setForm] = useState(item);
     const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
     const valid = form.name.trim().length > 0;
     const submit = () => { if (valid) onSave(form); };
+    const persisted = !isNew && isPersisted(item.id);
 
     return (
       <div className="om-modal-backdrop" onClick={onClose}>
-        <div className="om-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+        <div className="om-modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
           <div className="om-modal-head">
             <h2 className="om-modal-title">{isNew ? 'Новая заявка' : 'Заявка'}</h2>
             <button className="om-modal-close" onClick={onClose}>
@@ -358,6 +437,24 @@
                   onChange={e => set('note', e.target.value)} placeholder="Заметки по заявке" />
               </label>
             </div>
+
+            {!isNew && (
+              <AssignControl
+                item={item} isAdmin={isAdmin} sellers={sellers}
+                currentSellerId={currentSellerId} onAssign={onAssign}
+              />
+            )}
+
+            {persisted ? (
+              <React.Fragment>
+                <CloseDealForm form={form} onSave={onSave} showToast={showToast} />
+                <ActivityLog requestId={item.id} showToast={showToast} />
+              </React.Fragment>
+            ) : !isNew && (
+              <p style={S.sectionHint}>
+                История работы и закрытие сделки станут доступны после синхронизации заявки с сервером.
+              </p>
+            )}
           </div>
 
           <div className="om-modal-foot">
@@ -382,6 +479,179 @@
     );
   }
 
+  // ── Назначение ответственного продажника ──────────────────
+  function AssignControl({ item, isAdmin, sellers, currentSellerId, onAssign }) {
+    const assigned = item.assignedSellerId || '';
+    if (isAdmin) {
+      return (
+        <div style={S.section}>
+          <div style={S.sectionLabel}>
+            <LucideIcon name="user-round-cog" size={15} /> Ответственный продажник
+          </div>
+          <select className="om-form-select" value={assigned} onChange={e => onAssign(item.id, e.target.value)}>
+            <option value="">— свободный лид —</option>
+            {sellers.map(s => (
+              <option key={s.id} value={s.id}>{s.name}{s.active ? '' : ' (отключён)'}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+    // Продажник
+    const mine = assigned && assigned === currentSellerId;
+    return (
+      <div style={S.section}>
+        <div style={S.sectionLabel}><LucideIcon name="user-round" size={15} /> Ведение лида</div>
+        {mine ? (
+          <div style={S.okNote}><LucideIcon name="check" size={15} /> Вы ведёте этот лид</div>
+        ) : assigned ? (
+          <div style={S.mutedNote}><LucideIcon name="lock" size={15} /> Лид уже ведёт другой продажник</div>
+        ) : (
+          <button className="om-btn om-btn--secondary" onClick={() => onAssign(item.id, currentSellerId)}>
+            <LucideIcon name="hand" size={15} style={{ marginRight: 6 }} /> Взять в работу
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ── Закрытие сделки прямо из лида ──────────────────────────
+  function CloseDealForm({ form, onSave, showToast }) {
+    const [open, setOpen] = useState(false);
+    const [programId, setProgramId] = useState(form.programId || 'consult');
+    const [amount, setAmount] = useState(String(PROGRAM_PRICE[form.programId] || ''));
+    const [busy, setBusy] = useState(false);
+
+    const submit = () => {
+      setBusy(true);
+      apiCall('/api/deals', 'POST', {
+        requestId: form.id,
+        clientName: form.name,
+        clientPhone: form.phone,
+        programId,
+        amount: Number(amount) || 0,
+        status: 'won',
+      }).then(j => {
+        setBusy(false);
+        if (j && j.ok) {
+          showToast('Сделка создана — ' + fmtMoney(amount));
+          onSave({ ...form, status: 'done' });  // закрываем лид как завершённый
+        } else {
+          showToast((j && j.error) || 'Не удалось создать сделку');
+        }
+      });
+    };
+
+    return (
+      <div style={S.section}>
+        <div style={S.sectionLabel}><LucideIcon name="handshake" size={15} /> Сделка</div>
+        {!open ? (
+          <button className="om-btn om-btn--secondary" onClick={() => setOpen(true)}>
+            <LucideIcon name="badge-check" size={15} style={{ marginRight: 6 }} /> Закрыть сделку
+          </button>
+        ) : (
+          <div style={S.dealBox}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <label className="om-form-field" style={{ flex: '1 1 220px' }}>
+                <span className="om-form-label">Программа</span>
+                <select className="om-form-select" value={programId}
+                  onChange={e => { setProgramId(e.target.value); setAmount(String(PROGRAM_PRICE[e.target.value] || '')); }}>
+                  {PROGRAMS.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </label>
+              <label className="om-form-field" style={{ flex: '1 1 140px' }}>
+                <span className="om-form-label">Сумма, ₸</span>
+                <input className="om-form-input" type="number" min="0" value={amount}
+                  onChange={e => setAmount(e.target.value)} placeholder="0" />
+              </label>
+            </div>
+            <p style={S.sectionHint}>Заявка будет отмечена завершённой, а сделка попадёт в раздел «Сделки».</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="om-btn om-btn--secondary" onClick={() => setOpen(false)}>Отмена</button>
+              <button className="om-btn om-btn--primary" disabled={busy}
+                style={{ opacity: busy ? 0.6 : 1 }} onClick={submit}>
+                {busy ? 'Сохранение…' : 'Подтвердить сделку'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── История работы с лидом (лента активности) ──────────────
+  function ActivityLog({ requestId, showToast }) {
+    const [items, setItems] = useState([]);
+    const [loaded, setLoaded] = useState(false);
+    const [type, setType] = useState('call');
+    const [text, setText] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+      let alive = true;
+      apiCall('/api/activities?requestId=' + encodeURIComponent(requestId)).then(j => {
+        if (!alive) return;
+        if (j && j.ok && Array.isArray(j.data)) setItems(j.data);
+        setLoaded(true);
+      });
+      return () => { alive = false; };
+    }, [requestId]);
+
+    const add = () => {
+      if (!text.trim() || busy) return;
+      setBusy(true);
+      apiCall('/api/activities', 'POST', { requestId, type, text: text.trim() }).then(j => {
+        setBusy(false);
+        if (j && j.ok && j.data) { setItems(cur => [...cur, j.data]); setText(''); }
+        else showToast((j && j.error) || 'Не удалось добавить запись');
+      });
+    };
+
+    return (
+      <div style={S.section}>
+        <div style={S.sectionLabel}><LucideIcon name="history" size={15} /> История работы</div>
+
+        <div style={S.actComposer}>
+          <select className="om-form-select" value={type} onChange={e => setType(e.target.value)}
+            style={{ flex: '0 0 140px' }}>
+            {ACT_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <input className="om-form-input" type="text" value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') add(); }}
+            placeholder="Что произошло? (например: дозвонился, ждёт счёт)" style={{ flex: 1 }} />
+          <button className="om-btn om-btn--primary" onClick={add} disabled={!text.trim() || busy}
+            style={{ opacity: (!text.trim() || busy) ? 0.5 : 1 }}>
+            <LucideIcon name="send" size={15} />
+          </button>
+        </div>
+
+        {loaded && items.length === 0 ? (
+          <p style={S.sectionHint}>Записей пока нет. Отметьте первый контакт с клиентом.</p>
+        ) : (
+          <ul style={S.timeline}>
+            {items.slice().reverse().map(a => {
+              const t = actType(a.type);
+              return (
+                <li key={a.id} style={S.actItem}>
+                  <span style={S.actIcon}><LucideIcon name={t.icon} size={14} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={S.actText}>{a.text}</div>
+                    <div style={S.actMeta}>
+                      {t.label}
+                      {a.sellerName ? ' · ' + a.sellerName : ''}
+                      {a.createdAt ? ' · ' + fmtDateTime(a.createdAt) : ''}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
   const S = {
     deleteBtn: {
       marginRight: 'auto',
@@ -390,6 +660,35 @@
       background: 'transparent', color: 'var(--om-danger)',
       fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
     },
+    section: {
+      marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--om-hairline)',
+    },
+    sectionLabel: {
+      display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10,
+      fontSize: 13, fontWeight: 600, color: 'var(--om-ink)',
+    },
+    sectionHint: { margin: '8px 0 0', fontSize: 12, color: 'var(--om-muted)', lineHeight: 1.5 },
+    okNote: {
+      display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13,
+      color: 'var(--om-sage-deep)', fontWeight: 500,
+    },
+    mutedNote: {
+      display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--om-muted)',
+    },
+    dealBox: {
+      display: 'flex', flexDirection: 'column', gap: 10,
+      padding: 14, borderRadius: 'var(--om-radius-md, 12px)', background: 'var(--om-canvas)',
+    },
+    actComposer: { display: 'flex', gap: 8, alignItems: 'stretch', marginBottom: 12 },
+    timeline: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 },
+    actItem: { display: 'flex', gap: 10, alignItems: 'flex-start' },
+    actIcon: {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 28, height: 28, borderRadius: '50%',
+      background: 'var(--om-lilac)', color: 'var(--om-indigo-deep)',
+    },
+    actText: { fontSize: 13.5, color: 'var(--om-ink)', lineHeight: 1.45, wordBreak: 'break-word' },
+    actMeta: { marginTop: 2, fontSize: 11.5, color: 'var(--om-faint)' },
   };
 
   window.AdminRequestsEditor = AdminRequestsEditor;

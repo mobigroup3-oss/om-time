@@ -4,11 +4,11 @@
 // Контракт ответа всюду одинаковый: { ok: true, data } | { ok: false, error|errors }.
 // GET-чтения открыты; write-операции (POST/PUT/PATCH/DELETE) проходят requireAdmin().
 
-// CORS — на случай вызова с поддомена/локально. Разрешаем admin-токен в заголовках.
+// CORS — на случай вызова с поддомена/локально. Разрешаем admin- и seller-токены.
 export function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token, x-seller-token');
 }
 
 // Разбор тела: Vercel иногда отдаёт строку, иногда уже объект.
@@ -35,6 +35,44 @@ export function requireAdmin(req, res) {
     return false;
   }
   return true;
+}
+
+// Является ли запрос админским (по заголовку x-admin-token). Без побочных эффектов.
+export function isAdmin(req) {
+  const expected = process.env.ADMIN_TOKEN;
+  return !!expected && req.headers['x-admin-token'] === expected;
+}
+
+// SHA-256 hex — для хранения кода входа продажника (сам код в БД не храним).
+export function hashCode(code) {
+  const crypto = require('node:crypto');
+  return crypto.createHash('sha256').update(String(code)).digest('hex');
+}
+
+// Резолв продажника по личному коду (заголовок x-seller-token) через БД.
+// Возвращает { id, name } активного продажника или null. Серверный источник
+// истины: seller_id для сделок/лога берём отсюда, а не из тела запроса.
+export async function getSeller(req) {
+  const code = req.headers['x-seller-token'];
+  if (!code) return null;
+  const sql = await getSql();
+  if (!sql) return null;
+  const rows = await sql`
+    SELECT id, name FROM sellers
+    WHERE code_hash = ${hashCode(code)} AND active = true
+    LIMIT 1`;
+  return rows.rows[0] || null;
+}
+
+// Доступ персонала: админ ИЛИ авторизованный продажник. Возвращает
+// { role, id, name } либо сам шлёт 401 и возвращает null.
+// Вызывающий: `const who = await requireStaff(req,res); if (!who) return;`
+export async function requireStaff(req, res) {
+  if (isAdmin(req)) return { role: 'admin', id: 'admin', name: 'Администратор' };
+  const seller = await getSeller(req);
+  if (seller) return { role: 'seller', id: seller.id, name: seller.name };
+  res.status(401).json({ ok: false, error: 'Нужна авторизация сотрудника' });
+  return null;
 }
 
 // Строка подключения к Postgres. Разные интеграции называют переменную

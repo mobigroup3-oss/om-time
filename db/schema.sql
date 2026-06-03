@@ -134,3 +134,63 @@ CREATE TABLE IF NOT EXISTS schedule_months (
   month       TEXT PRIMARY KEY,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ════════════════════════════════════════════════════════════
+--  CRM продажников: продажники, сделки, лог обработки заявок
+-- ════════════════════════════════════════════════════════════
+
+-- ── Продажники ─────────────────────────────────────────────
+-- Аккаунты менеджеров отдела продаж. Вход — личный код (api/sellers.js
+-- ?action=login): храним только SHA-256 кода (code_hash), сам код не
+-- сохраняется. Админ заводит и деактивирует аккаунты в разделе «Продажники».
+CREATE TABLE IF NOT EXISTS sellers (
+  id          TEXT PRIMARY KEY,                    -- s1, s2… или s{timestamp}
+  name        TEXT NOT NULL,
+  code_hash   TEXT,                                -- sha256 личного кода входа (NULL = вход закрыт)
+  phone       TEXT,
+  active      BOOLEAN NOT NULL DEFAULT true,        -- false = доступ отозван
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sellers_code ON sellers (code_hash);
+
+-- Какой продажник ведёт заявку (воронка). NULL = «свободный» лид.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS assigned_seller_id TEXT;
+
+-- ── Сделки ─────────────────────────────────────────────────
+-- Закрытая продажа. Связана с заявкой (request_id), но клиент/телефон
+-- продублированы снимком, чтобы сделка пережила удаление заявки.
+-- seller_id ставится сервером из токена продажника — клиенту не доверяем.
+-- amount — сумма сделки в тенге (по умолчанию = цена программы, можно изменить
+-- под скидку/рассрочку). program_id — итоговая программа (может отличаться от
+-- запрошенной в заявке).
+CREATE TABLE IF NOT EXISTS deals (
+  id           BIGSERIAL PRIMARY KEY,
+  request_id   BIGINT REFERENCES requests(id) ON DELETE SET NULL,
+  seller_id    TEXT REFERENCES sellers(id) ON DELETE SET NULL,
+  client_name  TEXT NOT NULL,
+  client_phone TEXT,
+  program_id   TEXT,                               -- flagship-offline|flagship-online|club|teen|detox|consult
+  amount       INT NOT NULL DEFAULT 0,             -- сумма сделки, ₸
+  status       TEXT NOT NULL DEFAULT 'won' CHECK (status IN ('won','refunded')),
+  note         TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  closed_at    TIMESTAMPTZ NOT NULL DEFAULT now()  -- дата закрытия (для отчётов по периодам)
+);
+CREATE INDEX IF NOT EXISTS idx_deals_seller ON deals (seller_id);
+CREATE INDEX IF NOT EXISTS idx_deals_closed ON deals (closed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deals_request ON deals (request_id);
+
+-- ── Лог обработки заявки ───────────────────────────────────
+-- История контактов продажника с клиентом по конкретной заявке:
+-- звонки, сообщения, заметки, отметки смены статуса. Лента в карточке лида.
+CREATE TABLE IF NOT EXISTS request_activities (
+  id          BIGSERIAL PRIMARY KEY,
+  request_id  BIGINT REFERENCES requests(id) ON DELETE CASCADE,
+  seller_id   TEXT,
+  seller_name TEXT,                                -- снимок имени автора записи
+  type        TEXT NOT NULL DEFAULT 'note' CHECK (type IN ('call','whatsapp','meeting','note','status')),
+  text        TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_activities_request ON request_activities (request_id, created_at);
