@@ -319,10 +319,29 @@
     );
   }
 
-  // ── Пикер: добавить клиентов в папку ──
-  // Показывает клиентов специалиста, которых ещё нет в этой папке; клик добавляет.
+  // ── Пикер: добавить клиентов в папку (множественный выбор галочками) ──
+  // Показывает клиентов специалиста, которых ещё нет в этой папке.
   function AddClientsPicker({ group, clients, onAdd, onClose }) {
     const candidates = clients.filter(c => c.groupId !== group.id);
+    const [sel, setSel] = useState({});                    // { [clientId]: true }
+    const selCount = Object.values(sel).filter(Boolean).length;
+
+    const toggleSel = (id) => setSel(s => ({ ...s, [id]: !s[id] }));
+    const allChecked = candidates.length > 0 && candidates.every(c => sel[c.id]);
+    const toggleAll = () => {
+      if (allChecked) return setSel({});
+      const next = {};
+      candidates.forEach(c => { next[c.id] = true; });
+      setSel(next);
+    };
+
+    const submit = () => {
+      const ids = candidates.filter(c => sel[c.id]).map(c => c.id);
+      if (!ids.length) return;
+      onAdd(ids);
+      onClose();
+    };
+
     return (
       <div className="om-modal-backdrop" onClick={onClose}>
         <div className="om-modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
@@ -336,10 +355,17 @@
                 Все ваши клиенты уже в этой папке.
               </div>
             ) : (
-              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                {candidates.map(c => {
-                  return (
-                    <div key={c.id} style={GR.pickRow} onClick={() => onAdd(c.id)}>
+              <React.Fragment>
+                <label style={{ ...GR.pickRow, cursor: 'pointer', background: 'var(--om-canvas-soft, #faf8f3)' }}>
+                  <input type="checkbox" checked={allChecked} onChange={toggleAll}
+                    style={{ width: 17, height: 17, accentColor: 'var(--om-ink)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--om-muted)' }}>Выбрать всех</span>
+                </label>
+                <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                  {candidates.map(c => (
+                    <label key={c.id} style={{ ...GR.pickRow, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!sel[c.id]} onChange={() => toggleSel(c.id)}
+                        style={{ width: 17, height: 17, accentColor: 'var(--om-ink)', flexShrink: 0 }} />
                       <span style={DT.avatar}>{initials(c.name)}</span>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontWeight: 500, color: 'var(--om-ink)' }}>{c.name}</div>
@@ -347,15 +373,19 @@
                           {programTitle(c.programId)}{c.groupId ? ' · сейчас в другой папке' : ''}
                         </div>
                       </div>
-                      <span style={GR.pickAdd}><LucideIcon name="plus" size={16} style={{ marginRight: 4 }} /> Добавить</span>
-                    </div>
-                  );
-                })}
-              </div>
+                    </label>
+                  ))}
+                </div>
+              </React.Fragment>
             )}
           </div>
           <div className="om-modal-foot">
-            <button className="om-btn om-btn--secondary" onClick={onClose}>Готово</button>
+            <button className="om-btn om-btn--secondary" onClick={onClose}>Отмена</button>
+            <button className="om-btn om-btn--primary" disabled={selCount === 0}
+              style={{ opacity: selCount ? 1 : 0.5, pointerEvents: selCount ? 'auto' : 'none' }}
+              onClick={submit}>
+              Добавить{selCount ? ' (' + selCount + ')' : ''}
+            </button>
           </div>
         </div>
       </div>
@@ -529,7 +559,7 @@
           <AddClientsPicker
             group={pickerGroup}
             clients={items}
-            onAdd={(clientId) => move(clientId, pickerGroup.id)}
+            onAdd={(ids) => ids.forEach(id => move(id, pickerGroup.id))}
             onClose={() => setPickerGroup(null)}
           />
         )}
