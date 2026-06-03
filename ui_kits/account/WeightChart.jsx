@@ -261,6 +261,7 @@
 
   // ── Корневой компонент ───────────────────────────────────────
   function WeightChart({ clientId, readOnly }) {
+    const CK = 'omtime.weights.' + (clientId || 'self');
     const [loaded, setLoaded] = useState(false);
     const [setup, setSetup] = useState(null);
     const [entries, setEntries] = useState([]);
@@ -273,7 +274,24 @@
         setLoaded(true);
       });
     };
-    useEffect(() => { setLoaded(false); load(); }, [clientId]);
+
+    // Мгновенно рисуем из кэша (stale-while-revalidate), затем тихо обновляем —
+    // чтобы при каждом заходе не висела «Загрузка» из-за холодного старта функции.
+    useEffect(() => {
+      let cached = false;
+      try {
+        const raw = localStorage.getItem(CK);
+        if (raw) { const c = JSON.parse(raw); setSetup(c.setup); setEntries(c.entries || []); setLoaded(true); cached = true; }
+      } catch (e) {}
+      if (!cached) setLoaded(false);
+      load();
+    }, [clientId]);
+
+    // Сохраняем последний снимок в кэш при любом изменении данных.
+    useEffect(() => {
+      if (!loaded) return;
+      try { localStorage.setItem(CK, JSON.stringify({ setup, entries })); } catch (e) {}
+    }, [setup, entries, loaded]);
 
     const saveSetup = (payload) => {
       setSaving(true); setErr('');
@@ -304,7 +322,14 @@
       api('DELETE', { query: Object.assign({ date }, clientId ? { clientId } : {}) });
     };
 
-    if (!loaded) return <div style={S.muted}>Загрузка графика…</div>;
+    // Скелетон той же высоты, что и панель графика — чтобы при загрузке вёрстка
+    // не «прыгала» и не казалось, что подгрузилась другая страница.
+    if (!loaded) return (
+      <div style={S.skeleton}>
+        <LucideIcon name="line-chart" size={26} style={{ opacity: 0.4, marginBottom: 10 }} />
+        <div style={{ fontSize: 13, color: 'var(--om-muted)' }}>Загрузка графика…</div>
+      </div>
+    );
 
     // Нет старта программы.
     if (!setup) {
@@ -337,6 +362,11 @@
 
   const S = {
     muted: { fontSize: 13, color: 'var(--om-muted)' },
+    skeleton: {
+      background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+      borderRadius: 'var(--om-radius-lg, 16px)', minHeight: 440, boxShadow: 'var(--om-shadow-card)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    },
     panel: {
       background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
       borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px 16px', boxShadow: 'var(--om-shadow-card)',

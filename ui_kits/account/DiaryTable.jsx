@@ -38,11 +38,14 @@
   }
 
   function DiaryTable({ clientId, setup, readOnly }) {
+    const CK = 'omtime.diary.' + (clientId || 'self');
     const [marks, setMarks] = useState({});          // { 'YYYY-MM-DD|field': value }
     const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
-      setLoaded(false);
+      let cached = false;
+      try { const raw = localStorage.getItem(CK); if (raw) { setMarks(JSON.parse(raw)); setLoaded(true); cached = true; } } catch (e) {}
+      if (!cached) setLoaded(false);
       const qs = new URLSearchParams(Object.assign({ resource: 'diary' }, clientId ? { clientId } : {})).toString();
       fetch('/api/clients?' + qs, { headers: auth().headers() })
         .then(r => r.ok ? r.json() : null)
@@ -53,6 +56,9 @@
         })
         .catch(() => setLoaded(true));
     }, [clientId]);
+
+    // Кэшируем снимок отметок для мгновенной отрисовки при следующем заходе.
+    useEffect(() => { if (loaded) { try { localStorage.setItem(CK, JSON.stringify(marks)); } catch (e) {} } }, [marks, loaded]);
 
     if (!setup) return null;
 

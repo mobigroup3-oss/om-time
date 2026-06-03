@@ -26,7 +26,13 @@
   };
 
   function ClientCabinet() {
-    const [me, setMe] = useState(null);
+    const ME_KEY = 'omtime.me.' + (auth().clientId() || 'x');
+    // Гидрируем из кэша синхронно — чтобы шапка и карточка специалиста не моргали
+    // «Моя программа»/«Загрузка», пока идёт холодный запрос action=me.
+    const [me, setMe] = useState(() => {
+      try { const raw = localStorage.getItem(ME_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+      return null;
+    });
     const [loaded, setLoaded] = useState(false);
     const ClientActivityThread = window.ClientActivityThread;
     const WeightChart = window.WeightChart;
@@ -34,13 +40,19 @@
     useEffect(() => {
       fetch('/api/clients?action=me', { headers: auth().headers() })
         .then(r => r.ok ? r.json() : null)
-        .then(j => { if (j && j.ok && j.data) setMe(j.data); setLoaded(true); })
+        .then(j => {
+          if (j && j.ok && j.data) { setMe(j.data); try { localStorage.setItem(ME_KEY, JSON.stringify(j.data)); } catch (e) {} }
+          setLoaded(true);
+        })
         .catch(() => setLoaded(true));
     }, []);
 
     const name = (me && me.name) || auth().clientName() || 'Клиент';
     const specialist = me && me.specialist;
     const program = me && programTitle(me.programId);
+    // id берём из сессии сразу — чтобы график и лента грузились параллельно с action=me,
+    // а не ждали его (иначе на месте графика несколько секунд висит «Загрузка»).
+    const myId = (me && me.id) || auth().clientId();
 
     return (
       <React.Fragment>
@@ -79,15 +91,15 @@
         <div style={ST.content}>
           <section>
             <div style={ST.blockLabel}><LucideIcon name="line-chart" size={15} /> Мой график снижения веса</div>
-            {WeightChart && me
-              ? <WeightChart clientId={me.id} />
+            {WeightChart && myId
+              ? <WeightChart clientId={myId} />
               : <div style={ST.loadingTxt}>Загрузка…</div>}
           </section>
 
           <section style={{ marginTop: 28 }}>
             <div style={ST.blockLabel}><LucideIcon name="messages-square" size={15} /> Комментарии специалиста</div>
-            {ClientActivityThread && me
-              ? <ClientActivityThread clientId={me.id} canDelete={false} />
+            {ClientActivityThread && myId
+              ? <ClientActivityThread clientId={myId} canDelete={false} />
               : <div style={ST.loadingTxt}>Загрузка…</div>}
           </section>
         </div>

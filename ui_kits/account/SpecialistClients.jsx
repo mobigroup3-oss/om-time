@@ -63,7 +63,11 @@
   // ── Переиспользуемая лента комментариев вокруг клиента ──
   // Props: { clientId, canDelete } — canDelete доступен только администратору.
   function ClientActivityThread({ clientId, canDelete }) {
-    const [items, setItems] = useState([]);
+    const CK = 'omtime.activities.' + (clientId || 'self');
+    const [items, setItems] = useState(() => {
+      try { const raw = localStorage.getItem(CK); if (raw) return JSON.parse(raw); } catch (e) {}
+      return [];
+    });
     const [text, setText] = useState('');
     const [loaded, setLoaded] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -87,6 +91,8 @@
       });
     };
     useEffect(() => { if (clientId) load(); }, [clientId]);
+    // Кэш ленты — чтобы сообщения рисовались мгновенно, а не всплывали после запроса.
+    useEffect(() => { if (loaded) { try { localStorage.setItem(CK, JSON.stringify(items)); } catch (e) {} } }, [items, loaded]);
     useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ block: 'nearest' }); }, [items.length]);
 
     const send = () => {

@@ -80,11 +80,14 @@
   }
 
   function MeasureBlock({ clientId, readOnly }) {
+    const CK = 'omtime.measures.' + (clientId || 'self');
     const [vals, setVals] = useState({});      // { 'phase|field': value }
     const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
-      setLoaded(false);
+      let cached = false;
+      try { const raw = localStorage.getItem(CK); if (raw) { setVals(JSON.parse(raw)); setLoaded(true); cached = true; } } catch (e) {}
+      if (!cached) setLoaded(false);
       const qs = new URLSearchParams(Object.assign({ resource: 'measures' }, clientId ? { clientId } : {})).toString();
       fetch('/api/clients?' + qs, { headers: auth().headers() })
         .then(r => r.ok ? r.json() : null)
@@ -95,6 +98,9 @@
         })
         .catch(() => setLoaded(true));
     }, [clientId]);
+
+    // Кэш для мгновенной отрисовки таблицы/отчёта при следующем заходе.
+    useEffect(() => { if (loaded) { try { localStorage.setItem(CK, JSON.stringify(vals)); } catch (e) {} } }, [vals, loaded]);
 
     const get = (phase, field) => { const v = vals[phase + '|' + field]; return v == null ? '' : v; };
     const setLocal = (phase, field, value) => setVals(m => {
