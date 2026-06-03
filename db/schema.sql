@@ -311,3 +311,18 @@ CREATE TABLE IF NOT EXISTS client_diary (
   PRIMARY KEY (client_id, entry_date, field)
 );
 CREATE INDEX IF NOT EXISTS idx_client_diary ON client_diary (client_id, entry_date);
+
+-- ── Замеры тела (см) ───────────────────────────────────────
+-- Объёмы тела клиента в двух точках: 'start' (день 1) и 'd4' (4-й день = старт+3).
+-- По разнице система авто-собирает отчёт (что ушло / без изменений / выросло) —
+-- хранить отчёт не нужно, он считается на лету. Поля фиксированы (см. api/clients.js
+-- MEASURE_FIELDS): waist, chest, chest_over, chest_under, hips, galife, neck, arm, wrist.
+CREATE TABLE IF NOT EXISTS client_measures (
+  client_id  TEXT REFERENCES clients(id) ON DELETE CASCADE,
+  phase      TEXT NOT NULL,                          -- 'start' | 'd4'
+  field      TEXT NOT NULL,                          -- ключ замера (см. выше)
+  value      NUMERIC(5,1) NOT NULL,                  -- см
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (client_id, phase, field)
+);
+CREATE INDEX IF NOT EXISTS idx_client_measures ON client_measures (client_id);

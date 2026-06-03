@@ -175,32 +175,17 @@
 
     return (
       <React.Fragment>
-        <div className="om-acc-head">
-          <div>
+        <div className="om-acc-head" style={DT.head}>
+          <div style={{ minWidth: 0 }}>
             <button onClick={onBack} style={DT.back}>
               <LucideIcon name="arrow-left" size={15} style={{ marginRight: 6 }} /> Все клиенты
             </button>
             <h1 className="om-acc-title" style={{ marginTop: 8 }}>{client.name}</h1>
-            <p className="om-acc-sub">Персональные данные, материалы и комментарии.</p>
+            <p className="om-acc-sub" style={{ marginBottom: 0 }}>График, замеры и дневник клиента — просмотр и комментарии.</p>
           </div>
-        </div>
-
-        <div style={DT.cols}>
-          <div style={DT.colMain}>
-            <div style={DT.blockLabel}><LucideIcon name="line-chart" size={15} /> График снижения веса</div>
-            {window.WeightChart
-              ? <window.WeightChart clientId={client.id} readOnly />
-              : <TablesPlaceholder />}
-            <div style={{ marginTop: 22 }}>
-              <div style={DT.blockLabel}><LucideIcon name="messages-square" size={15} /> Комментарии</div>
-              <ClientActivityThread clientId={client.id} canDelete={false} />
-            </div>
-          </div>
-
-          <aside style={DT.colSide}>
-            <div style={DT.card}>
-              <div style={DT.cardLabel}>Персональные данные</div>
-              {fields.length === 0 && <div style={{ fontSize: 13, color: 'var(--om-faint)' }}>Данные не заполнены.</div>}
+          {fields.length > 0 && (
+            <div style={DT.sideCard}>
+              <div style={DT.cardLabel}>Данные клиента</div>
               {fields.map(f => (
                 <div key={f.label} style={DT.field}>
                   <div style={DT.fieldLabel}>{f.label}</div>
@@ -208,7 +193,18 @@
                 </div>
               ))}
             </div>
-          </aside>
+          )}
+        </div>
+
+        <div style={DT.content}>
+          <div style={DT.blockLabel}><LucideIcon name="line-chart" size={15} /> График снижения веса</div>
+          {window.WeightChart
+            ? <window.WeightChart clientId={client.id} readOnly />
+            : <TablesPlaceholder />}
+          <div style={{ marginTop: 26 }}>
+            <div style={DT.blockLabel}><LucideIcon name="messages-square" size={15} /> Комментарии</div>
+            <ClientActivityThread clientId={client.id} canDelete={false} />
+          </div>
         </div>
       </React.Fragment>
     );
@@ -620,6 +616,13 @@
   };
   const DT = {
     back: { display: 'inline-flex', alignItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--om-muted)', padding: 0 },
+    head: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' },
+    content: { maxWidth: 1000 },
+    sideCard: {
+      flex: '0 0 auto', minWidth: 200, maxWidth: 280, background: 'var(--om-canvas-white)',
+      border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)',
+      padding: '14px 16px 4px', boxShadow: 'var(--om-shadow-card)',
+    },
     cols: { display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'flex-start' },
     colMain: { flex: '1 1 420px', minWidth: 300 },
     colSide: { flex: '0 0 260px', minWidth: 240 },

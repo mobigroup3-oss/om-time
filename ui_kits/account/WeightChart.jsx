@@ -64,7 +64,7 @@
     let yMin = Math.floor(targets[2].weight - 0.5);
     pts.forEach(p => { yMax = Math.max(yMax, Math.ceil(p.weight + 0.5)); yMin = Math.min(yMin, Math.floor(p.weight - 0.5)); });
 
-    const W = 780, H = 440, M = { t: 18, r: 58, b: 40, l: 44 };
+    const W = 840, H = 360, M = { t: 16, r: 56, b: 34, l: 40 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
     const xs = (d) => M.l + (d / totalDays) * pw;
     const ys = (w) => M.t + ((yMax - w) / (yMax - yMin)) * ph;
@@ -322,25 +322,29 @@
 
     return (
       <div>
-        <Progress setup={setup} entries={entries} />
-        <Chart setup={setup} entries={entries} />
-        <Legend setup={setup} />
+        <div style={S.panel}>
+          <Progress setup={setup} entries={entries} />
+          <Chart setup={setup} entries={entries} />
+          <Legend setup={setup} />
+        </div>
         {!readOnly && <DailyInput setup={setup} onSave={saveDaily} saving={saving} />}
         <EntriesTable setup={setup} entries={entries} readOnly={readOnly} onDelete={deleteEntry} />
         {window.DiaryTable && <window.DiaryTable clientId={clientId} setup={setup} readOnly={readOnly} />}
+        {window.MeasureBlock && <window.MeasureBlock clientId={clientId} readOnly={readOnly} />}
       </div>
     );
   }
 
   const S = {
     muted: { fontSize: 13, color: 'var(--om-muted)' },
-    chartWrap: {
+    panel: {
       background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
-      borderRadius: 'var(--om-radius-lg, 16px)', padding: '16px 14px', marginTop: 14,
+      borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px 16px', boxShadow: 'var(--om-shadow-card)',
     },
+    chartWrap: { marginTop: 6 },
     axisLabel: { fontSize: '11px', fill: 'var(--om-muted, #8a8275)', fontFamily: 'inherit' },
     targetLabel: { fontSize: '12px', fontWeight: 600, fontFamily: 'inherit' },
-    legend: { display: 'flex', flexWrap: 'wrap', gap: '8px 18px', marginTop: 12, padding: '0 4px' },
+    legend: { display: 'flex', flexWrap: 'wrap', gap: '8px 18px', marginTop: 10, paddingTop: 12, borderTop: '1px solid var(--om-hairline-soft, #efe9df)' },
     legendItem: { display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--om-ink)' },
     legendDot: { width: 14, height: 3, borderRadius: 2, display: 'inline-block' },
     setupBox: {
@@ -371,10 +375,10 @@
       all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 26, height: 26, borderRadius: 8, color: 'var(--om-muted)',
     },
-    progress: { display: 'flex', flexWrap: 'wrap', gap: 26, padding: '4px 4px 0' },
-    progStat: { display: 'flex', flexDirection: 'column', gap: 2 },
-    progNum: { fontSize: 24, fontWeight: 600, color: 'var(--om-ink)', lineHeight: 1 },
-    progUnit: { fontSize: 12, color: 'var(--om-muted)' },
+    progress: { display: 'flex', flexWrap: 'wrap', gap: 28, paddingBottom: 14, marginBottom: 4, borderBottom: '1px solid var(--om-hairline-soft, #efe9df)' },
+    progStat: { display: 'flex', flexDirection: 'column', gap: 3 },
+    progNum: { fontSize: 26, fontWeight: 600, color: 'var(--om-ink)', lineHeight: 1 },
+    progUnit: { fontSize: 11.5, color: 'var(--om-muted)', letterSpacing: '0.02em' },
   };
 
   window.WeightChart = WeightChart;

@@ -44,76 +44,70 @@
 
     return (
       <React.Fragment>
-        <div className="om-acc-head">
-          <div>
-            <div className="om-acc-eyebrow">Кабинет</div>
-            <h1 className="om-acc-title">Здравствуйте, {name.split(/\s+/)[0]}</h1>
-            <p className="om-acc-sub">
-              {program ? ('Ваша программа: ' + program + '. ') : ''}
-              Здесь вы ведёте свои таблицы и графики, а специалист их проверяет.
+        {/* Рабочая шапка: слева — программа клиента, справа — компактная карточка
+            прикреплённого специалиста (всегда на виду, не уезжает за край). */}
+        <div className="om-acc-head" style={ST.head}>
+          <div style={{ minWidth: 0 }}>
+            <div className="om-acc-eyebrow">Личный кабинет{name ? ' · ' + name.split(/\s+/)[0] : ''}</div>
+            <h1 className="om-acc-title">{program || 'Моя программа'}</h1>
+            <p className="om-acc-sub" style={{ marginBottom: 0 }}>
+              Ведите график веса, замеры и дневник питания — специалист их проверяет и комментирует.
             </p>
+          </div>
+
+          <div style={ST.specCard}>
+            <div style={ST.specCap}>Ваш специалист</div>
+            {specialist ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                {specialist.photo
+                  ? <img src={specialist.photo} alt="" style={ST.avatarImg} />
+                  : <span style={ST.avatar}>{initials(specialist.name)}</span>}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: 'var(--om-ink)', fontSize: 14 }}>{specialist.name}</div>
+                  {specialist.roleLabel && <div style={{ fontSize: 12, color: 'var(--om-muted)' }}>{specialist.roleLabel}</div>}
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12.5, color: 'var(--om-faint)' }}>
+                {loaded ? 'Пока не назначен' : 'Загрузка…'}
+              </div>
+            )}
           </div>
         </div>
 
-        <div style={ST.cols}>
-          <div style={ST.colMain}>
-            {/* График снижения веса: целевые линии −6/−10/−15% + фактический вес клиента. */}
-            <div style={ST.blockLabel}>
-              <LucideIcon name="line-chart" size={15} /> Мой график снижения веса
-            </div>
+        {/* Контент на всю ширину — графику и таблицам нужно место. */}
+        <div style={ST.content}>
+          <section>
+            <div style={ST.blockLabel}><LucideIcon name="line-chart" size={15} /> Мой график снижения веса</div>
             {WeightChart && me
               ? <WeightChart clientId={me.id} />
-              : <div style={{ fontSize: 13, color: 'var(--om-faint)' }}>Загрузка…</div>}
+              : <div style={ST.loadingTxt}>Загрузка…</div>}
+          </section>
 
-            <div style={{ marginTop: 22 }}>
-              <div style={ST.blockLabel}>
-                <LucideIcon name="messages-square" size={15} /> Комментарии специалиста
-              </div>
-              {ClientActivityThread && me
-                ? <ClientActivityThread clientId={me.id} canDelete={false} />
-                : <div style={{ fontSize: 13, color: 'var(--om-faint)' }}>Загрузка…</div>}
-            </div>
-          </div>
-
-          <aside style={ST.colSide}>
-            <div style={ST.card}>
-              <div style={ST.cardLabel}>Ваш специалист</div>
-              {specialist ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {specialist.photo
-                    ? <img src={specialist.photo} alt="" style={ST.avatarImg} />
-                    : <span style={ST.avatar}>{initials(specialist.name)}</span>}
-                  <div>
-                    <div style={{ fontWeight: 600, color: 'var(--om-ink)' }}>{specialist.name}</div>
-                    {specialist.roleLabel && <div style={{ fontSize: 12.5, color: 'var(--om-muted)' }}>{specialist.roleLabel}</div>}
-                  </div>
-                </div>
-              ) : (
-                <div style={{ fontSize: 13, color: 'var(--om-faint)' }}>
-                  {loaded ? 'Специалист пока не назначен. Администратор скоро его прикрепит.' : 'Загрузка…'}
-                </div>
-              )}
-            </div>
-          </aside>
+          <section style={{ marginTop: 28 }}>
+            <div style={ST.blockLabel}><LucideIcon name="messages-square" size={15} /> Комментарии специалиста</div>
+            {ClientActivityThread && me
+              ? <ClientActivityThread clientId={me.id} canDelete={false} />
+              : <div style={ST.loadingTxt}>Загрузка…</div>}
+          </section>
         </div>
       </React.Fragment>
     );
   }
 
   const ST = {
-    cols: { display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'flex-start' },
-    colMain: { flex: '1 1 420px', minWidth: 300 },
-    colSide: { flex: '0 0 260px', minWidth: 240 },
-    placeholder: {
-      background: 'var(--om-canvas-white)', border: '1px dashed var(--om-hairline)',
-      borderRadius: 'var(--om-radius-lg, 16px)', padding: '48px 28px',
-      textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
+    head: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' },
+    content: { maxWidth: 1000 },
+    blockLabel: { display: 'flex', alignItems: 'center', gap: 7, margin: '2px 0 12px', fontSize: 13, fontWeight: 600, color: 'var(--om-ink)' },
+    loadingTxt: { fontSize: 13, color: 'var(--om-faint)' },
+    specCard: {
+      flex: '0 0 auto', minWidth: 210, background: 'var(--om-canvas-white)',
+      border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)',
+      padding: '12px 16px', boxShadow: 'var(--om-shadow-card)',
     },
-    blockLabel: { display: 'flex', alignItems: 'center', gap: 7, margin: '6px 0 10px', fontSize: 13, fontWeight: 600, color: 'var(--om-ink)' },
-    card: { background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px' },
-    cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--om-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 },
-    avatar: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', flexShrink: 0, background: 'var(--om-lilac)', color: 'var(--om-indigo-deep)', fontSize: 15, fontWeight: 600 },
-    avatarImg: { width: 44, height: 44, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', display: 'block' },
+    specCap: { fontSize: 10.5, fontWeight: 600, color: 'var(--om-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 9 },
+    avatar: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: 'var(--om-lilac)', color: 'var(--om-indigo-deep)', fontSize: 14, fontWeight: 600 },
+    avatarImg: { width: 40, height: 40, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', display: 'block' },
   };
 
   window.ClientCabinet = ClientCabinet;

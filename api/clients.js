@@ -338,6 +338,56 @@ async function handleDiary(req, res, sql) {
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
 }
 
+// Замеры тела (client_measures) — объёмы в см в двух точках: 'start' и 'd4'.
+// Заполняет клиент, специалист/админ смотрят. По разнице фронт строит отчёт.
+//   GET    ?resource=measures&clientId=…                       → { entries:[{phase,field,value}] }
+//   POST   ?resource=measures { clientId?, phase, field, value } → записать (пустое value = снять)
+const MEASURE_FIELDS = ['waist', 'chest', 'chest_over', 'chest_under', 'hips', 'galife', 'neck', 'arm', 'wrist'];
+const MEASURE_PHASES = ['start', 'd4'];
+
+async function handleMeasures(req, res, sql) {
+  if (!sql) {
+    if (req.method === 'GET') return res.status(200).json({ ok: true, data: { entries: [] } });
+    return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });
+  }
+  const who = await resolveActor(req, sql);
+  if (!who) return res.status(401).json({ ok: false, error: 'Нужна авторизация' });
+
+  const selfId = who.actor.role === 'client' ? who.actor.id : null;
+  const clientId = (req.query && req.query.clientId) || selfId;
+  if (!clientId) return res.status(400).json({ ok: false, error: 'Нужен clientId' });
+  const canWrite = who.actor.role === 'admin' || (who.actor.role === 'client' && who.actor.id === clientId);
+
+  if (req.method === 'GET') {
+    if (!(await who.can(clientId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому клиенту' });
+    const e = await sql`SELECT phase, field, value FROM client_measures WHERE client_id = ${clientId}`;
+    const entries = e.rows.map(r => ({ phase: r.phase, field: r.field, value: Number(r.value) }));
+    return res.status(200).json({ ok: true, data: { entries } });
+  }
+
+  if (req.method === 'POST') {
+    if (!canWrite) return res.status(403).json({ ok: false, error: 'Заполнять замеры может только сам клиент' });
+    const b = readJson(req);
+    if (!MEASURE_PHASES.includes(b.phase)) return res.status(422).json({ ok: false, errors: { phase: 'Неизвестный этап' } });
+    if (!MEASURE_FIELDS.includes(b.field)) return res.status(422).json({ ok: false, errors: { field: 'Неизвестный замер' } });
+    const raw = String(b.value == null ? '' : b.value).trim();
+    if (!raw) {
+      await sql`DELETE FROM client_measures WHERE client_id = ${clientId} AND phase = ${b.phase} AND field = ${b.field}`;
+      return res.status(200).json({ ok: true, data: { phase: b.phase, field: b.field, value: null } });
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 5 || n > 300) return res.status(422).json({ ok: false, errors: { value: 'Обхват от 5 до 300 см' } });
+    const v = Math.round(n * 10) / 10;
+    await sql`
+      INSERT INTO client_measures (client_id, phase, field, value, updated_at)
+      VALUES (${clientId}, ${b.phase}, ${b.field}, ${v}, now())
+      ON CONFLICT (client_id, phase, field) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
+    return res.status(200).json({ ok: true, data: { phase: b.phase, field: b.field, value: v } });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
 export default async function handler(req, res) {
   if (handlePreflight(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
   const sql = await getSql();
@@ -351,6 +401,9 @@ export default async function handler(req, res) {
 
   // Дневник питания — отдельная ветка (см. handleDiary выше).
   if (req.query && req.query.resource === 'diary') return handleDiary(req, res, sql);
+
+  // Замеры тела — отдельная ветка (см. handleMeasures выше).
+  if (req.query && req.query.resource === 'measures') return handleMeasures(req, res, sql);
 
   // Папки/группы клиентов специалиста — отдельная ветка (см. handleGroups выше).
   if (req.query && req.query.resource === 'groups') return handleGroups(req, res, sql);
