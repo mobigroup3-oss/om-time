@@ -196,3 +196,55 @@ CREATE TABLE IF NOT EXISTS request_activities (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_activities_request ON request_activities (request_id, created_at);
+
+-- ════════════════════════════════════════════════════════════
+--  Личные кабинеты клиентов + роль специалиста
+-- ════════════════════════════════════════════════════════════
+-- После оплаты (deals) администратор формирует клиенту личный кабинет
+-- (вход по личному коду, как у продажника) и прикрепляет специалиста —
+-- человека из команды (team_members), который проверяет таблицы/графики
+-- клиента и оставляет комментарии. Роли кабинета: admin | seller | specialist | client.
+
+-- Вход специалиста: участник «Команды» может входить в кабинет по личному коду.
+-- Храним только SHA-256 кода (как у продажников); NULL = вход закрыт.
+-- «active» в team_members означает «опубликован на сайте» и к входу не относится.
+ALTER TABLE team_members ADD COLUMN IF NOT EXISTS code_hash TEXT;
+CREATE INDEX IF NOT EXISTS idx_team_code ON team_members (code_hash);
+
+-- ── Клиенты ────────────────────────────────────────────────
+-- Аккаунт клиента с личным кабинетом. Заводит администратор после оплаты
+-- (обычно из карточки сделки). Персональные данные — снимок (как в deals),
+-- чтобы кабинет пережил удаление заявки/сделки. Вход — личный код (code_hash).
+CREATE TABLE IF NOT EXISTS clients (
+  id            TEXT PRIMARY KEY,                  -- c{timestamp}
+  name          TEXT NOT NULL,
+  phone         TEXT,
+  email         TEXT,
+  city          TEXT,
+  note          TEXT,                              -- внутренняя заметка администратора
+  program_id    TEXT,                              -- купленная программа (снимок)
+  deal_id       BIGINT REFERENCES deals(id)        ON DELETE SET NULL,
+  request_id    BIGINT REFERENCES requests(id)     ON DELETE SET NULL,
+  specialist_id TEXT   REFERENCES team_members(id) ON DELETE SET NULL,  -- прикреплённый специалист
+  code_hash     TEXT,                              -- SHA-256 личного кода входа клиента (NULL = вход закрыт)
+  active         BOOLEAN NOT NULL DEFAULT true,    -- false = доступ отозван
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_clients_code       ON clients (code_hash);
+CREATE INDEX IF NOT EXISTS idx_clients_specialist ON clients (specialist_id);
+
+-- ── Лента кабинета клиента ─────────────────────────────────
+-- Комментарии вокруг клиента: специалист проверяет данные и пишет заметки,
+-- клиент может отвечать, администратор тоже видит. Копия структуры
+-- request_activities. Автор подписывается ролью (admin | specialist | client).
+CREATE TABLE IF NOT EXISTS client_activities (
+  id          BIGSERIAL PRIMARY KEY,
+  client_id   TEXT REFERENCES clients(id) ON DELETE CASCADE,
+  author_id   TEXT,
+  author_name TEXT,                                -- снимок имени автора
+  author_role TEXT,                                -- admin | specialist | client
+  type        TEXT NOT NULL DEFAULT 'note' CHECK (type IN ('note','review')),
+  text        TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_client_act ON client_activities (client_id, created_at);

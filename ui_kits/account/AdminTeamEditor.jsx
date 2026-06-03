@@ -60,6 +60,14 @@
   const roleInfo = (id) => ROLES.find(r => r.id === id) || ROLES[0];
   const splitList = (str) => str.split(',').map(s => s.trim()).filter(Boolean);
 
+  // Читаемый код входа специалиста: без похожих символов (0/O, 1/I/L). См. AdminSellersEditor.
+  const genCode = () => {
+    const abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 6; i++) s += abc[Math.floor(Math.random() * abc.length)];
+    return s;
+  };
+
   // Файл фото → квадратный data-URL: центр-кроп + сжатие.
   // Аватар маленький (макс. 80px на сайте), поэтому 256px с запасом под retina.
   // WebP с откатом на JPEG — чтобы строка в localStorage/БД была лёгкой.
@@ -171,8 +179,13 @@
         items.filter(i => i.featured && i.id !== excludeId).forEach(i => apiWrite('PUT', { ...i, featured: false }));
       };
 
+      // Плейн-код входа не храним в localStorage/стейте — только отправляем на сервер.
+      // Локально достаточно флага hasCode (для бейджа «код задан»).
+      const { code, ...local } = data;
+      if (code) local.hasCode = true;
+
       if (editing === 'new') {
-        const created = { ...data, id: 't' + Date.now() };
+        const created = { ...local, id: 't' + Date.now() };
         let next = [...items, created];
         if (data.featured) { next = next.map(i => (i.id === created.id ? i : { ...i, featured: false })); unsetOthers(created.id); }
         setItems(next); cache(next);
@@ -181,11 +194,11 @@
         });
         showToast('Специалист добавлен');
       } else {
-        const updated = { ...items.find(i => i.id === editing), ...data, id: editing };
+        const updated = { ...items.find(i => i.id === editing), ...local, id: editing };
         let next = items.map(i => (i.id === editing ? updated : i));
         if (data.featured) { next = next.map(i => (i.id === editing ? i : { ...i, featured: false })); unsetOthers(editing); }
         setItems(next); cache(next);
-        apiWrite('PUT', updated);
+        apiWrite('PUT', { ...updated, ...(code ? { code } : {}) });
         showToast('Изменения сохранены');
       }
       setEditing(null);
@@ -339,6 +352,10 @@
     const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
     const valid = form.name.trim().length > 0;
 
+    // Код входа специалиста в кабинет (см. api/team.js). '' = не менять.
+    const [newCode, setNewCode] = useState('');
+    const copyCode = () => { try { navigator.clipboard.writeText(newCode); } catch (e) {} };
+
     const fileRef = useRef(null);
     const [photoErr, setPhotoErr] = useState('');
     const openPicker = () => { if (fileRef.current) fileRef.current.click(); };
@@ -357,11 +374,14 @@
     const submit = () => {
       if (!valid) return;
       const { specStr, credentialsStr, ...rest } = form;
-      onSave({
+      const data = {
         ...rest,
         spec: splitList(specStr),
         credentials: splitList(credentialsStr),
-      });
+      };
+      // code: пусто → не трогаем; строка → задать/сменить код входа специалиста.
+      if (newCode.trim()) data.code = newCode.trim();
+      onSave(data);
     };
 
     return (
@@ -544,6 +564,38 @@
                   placeholder="Напр. участников"
                 />
               </label>
+            </div>
+
+            {/* Доступ специалиста в личный кабинет (вход по коду). */}
+            <div className="om-form-field om-form-field--full" style={{ marginTop: 14 }}>
+              <span className="om-form-label">
+                {item.hasCode ? 'Сменить код входа в кабинет' : 'Код входа в кабинет специалиста'}
+              </span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                <input
+                  className="om-form-input"
+                  type="text"
+                  value={newCode}
+                  onChange={e => setNewCode(e.target.value.toUpperCase())}
+                  placeholder={item.hasCode ? 'Оставьте пустым — код не изменится' : 'Например, K7QM4P'}
+                  style={{ flex: 1, fontFamily: 'var(--om-font-mono, monospace)', letterSpacing: '0.12em' }}
+                />
+                <button type="button" className="om-btn om-btn--secondary" onClick={() => setNewCode(genCode())}
+                  style={{ whiteSpace: 'nowrap' }}>
+                  <LucideIcon name="dices" size={16} style={{ marginRight: 6 }} />
+                  Сгенерировать
+                </button>
+                {newCode && (
+                  <button type="button" className="om-adm-icon-btn" title="Скопировать" onClick={copyCode}>
+                    <LucideIcon name="copy" size={16} />
+                  </button>
+                )}
+              </div>
+              <span className="om-form-help">
+                {item.hasCode
+                  ? 'Код задан и хранится в зашифрованном виде. Введите новый, чтобы заменить. С этим кодом специалист входит в кабинет и видит прикреплённых клиентов.'
+                  : 'Задайте код, чтобы этот человек мог входить в кабинет как специалист и проверять данные прикреплённых клиентов. Передайте код лично — позже он не показывается.'}
+              </span>
             </div>
 
             <label style={S.checkboxRow}>

@@ -583,6 +583,9 @@
     });
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
     const valid = form.clientName.trim().length > 0;
+    // Формирование личного кабинета клиента из оплаченной сделки (только админ).
+    const [showClient, setShowClient] = useState(false);
+    const ClientFormModal = window.ClientFormModal;
     const submit = () => {
       if (!valid) return;
       const data = {
@@ -671,6 +674,13 @@
                 Удалить
               </button>
             )}
+            {/* Сформировать кабинет клиента — только админ, по оплаченной сделке. */}
+            {isAdmin && isEdit && form.status === 'won' && ClientFormModal && (
+              <button className="om-btn om-btn--secondary" onClick={() => setShowClient(true)}>
+                <LucideIcon name="contact-round" size={16} style={{ marginRight: 6 }} />
+                Сформировать кабинет клиента
+              </button>
+            )}
             <button className="om-btn om-btn--secondary" onClick={onClose}>Отмена</button>
             <button className="om-btn om-btn--primary" disabled={!valid}
               style={{ opacity: valid ? 1 : 0.5, pointerEvents: valid ? 'auto' : 'none' }}
@@ -679,6 +689,24 @@
             </button>
           </div>
         </div>
+
+        {showClient && ClientFormModal && (
+          // Гасим всплытие клика, чтобы фон вложенной модалки не закрывал модалку сделки.
+          <div onClick={e => e.stopPropagation()}>
+            <ClientFormModal
+              client={null}
+              prefill={{
+                name: form.clientName.trim(),
+                phone: form.clientPhone.trim(),
+                programId: form.programId,
+                dealId: deal && deal.id,
+                requestId: deal && deal.requestId,
+              }}
+              onClose={() => setShowClient(false)}
+              onSaved={() => {}}
+            />
+          </div>
+        )}
       </div>
     );
   }

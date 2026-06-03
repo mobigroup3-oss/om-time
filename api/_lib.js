@@ -8,7 +8,7 @@
 export function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token, x-seller-token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token, x-seller-token, x-specialist-token, x-client-token');
 }
 
 // Разбор тела: Vercel иногда отдаёт строку, иногда уже объект.
@@ -59,6 +59,35 @@ export async function getSeller(req) {
   if (!sql) return null;
   const rows = await sql`
     SELECT id, name, monthly_goal FROM sellers
+    WHERE code_hash = ${hashCode(code)} AND active = true
+    LIMIT 1`;
+  return rows.rows[0] || null;
+}
+
+// Резолв специалиста по личному коду (заголовок x-specialist-token) через БД.
+// Специалист — это участник «Команды» (team_members) с заданным code_hash.
+// Возвращает { id, name, role_label } или null.
+export async function getSpecialist(req) {
+  const code = req.headers['x-specialist-token'];
+  if (!code) return null;
+  const sql = await getSql();
+  if (!sql) return null;
+  const rows = await sql`
+    SELECT id, name, role_label FROM team_members
+    WHERE code_hash = ${hashCode(code)}
+    LIMIT 1`;
+  return rows.rows[0] || null;
+}
+
+// Резолв клиента по личному коду (заголовок x-client-token) через БД.
+// Возвращает строку clients активного клиента или null.
+export async function getClient(req) {
+  const code = req.headers['x-client-token'];
+  if (!code) return null;
+  const sql = await getSql();
+  if (!sql) return null;
+  const rows = await sql`
+    SELECT * FROM clients
     WHERE code_hash = ${hashCode(code)} AND active = true
     LIMIT 1`;
   return rows.rows[0] || null;

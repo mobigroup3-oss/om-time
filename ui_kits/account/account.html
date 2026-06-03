@@ -63,11 +63,11 @@
     <form id="om-gate-form" class="om-gate-card">
       <div class="om-gate-brand">OM&nbsp;Time</div>
       <h1 class="om-gate-title">Вход в кабинет</h1>
-      <p class="om-gate-sub">Администратор — введите пароль. Продажник — введите свой личный код входа.</p>
-      <input id="om-gate-input" class="om-gate-input" type="password" autocomplete="current-password" placeholder="Пароль администратора или код продажника" />
+      <p class="om-gate-sub">Администратор — введите пароль. Продажник, специалист или клиент — введите свой личный код входа.</p>
+      <input id="om-gate-input" class="om-gate-input" type="password" autocomplete="current-password" placeholder="Пароль администратора или личный код" />
       <div id="om-gate-error" class="om-gate-error" hidden></div>
       <button type="submit" class="om-gate-btn">Войти</button>
-      <p class="om-gate-hint">Пароль администратора задаётся переменной <code>ADMIN_TOKEN</code> на сервере. Коды продажникам выдаёт администратор в разделе «Продажники». Без сервера (локальный просмотр) вход открыт как администратор.</p>
+      <p class="om-gate-hint">Пароль администратора задаётся переменной <code>ADMIN_TOKEN</code> на сервере. Личные коды продажникам, специалистам и клиентам выдаёт администратор. Без сервера (локальный просмотр) вход открыт как администратор.</p>
     </form>
   </div>
 
@@ -80,6 +80,12 @@
         sellerTok: 'omtime.seller.token',
         sellerId: 'omtime.seller.id',
         sellerName: 'omtime.seller.name',
+        specialistTok: 'omtime.specialist.token',
+        specialistId: 'omtime.specialist.id',
+        specialistName: 'omtime.specialist.name',
+        clientTok: 'omtime.client.token',
+        clientId: 'omtime.client.id',
+        clientName: 'omtime.client.name',
       };
       var gate  = document.getElementById('om-gate');
       var form  = document.getElementById('om-gate-form');
@@ -99,9 +105,9 @@
           .then(function (r) { return r.status === 401 ? 'bad' : 'ok'; })
           .catch(function () { return 'offline'; });
       }
-      // Вход продажника по личному коду. Возвращает {id,name} или null.
-      function loginSeller(code) {
-        return fetch('/api/sellers?action=login', {
+      // Вход по личному коду через указанный эндпоинт. Возвращает данные или null.
+      function loginByCode(url, code) {
+        return fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: code }),
@@ -109,6 +115,9 @@
           .then(function (j) { return (j && j.ok && j.data) ? j.data : null; })
           .catch(function () { return null; });
       }
+      function loginSeller(code)     { return loginByCode('/api/sellers?action=login', code); }
+      function loginSpecialist(code) { return loginByCode('/api/team?action=login', code); }
+      function loginClient(code)     { return loginByCode('/api/clients?action=login', code); }
 
       // Уже авторизован в этой сессии — тихо пропускаем.
       if (ss(K.role)) { hide(); }
@@ -131,7 +140,8 @@
             location.reload();
             return;
           }
-          // Не админ — пробуем как код продажника.
+          // Не админ — пробуем по очереди: продажник → специалист → клиент.
+          // Первый успех выигрывает (теоретическое пересечение кодов разрешается порядком).
           loginSeller(val).then(function (seller) {
             if (seller) {
               clearAll();
@@ -140,9 +150,31 @@
               ssSet(K.sellerId, seller.id);
               ssSet(K.sellerName, seller.name);
               location.reload();   // см. комментарий выше — нужен перерендер под роль
-            } else {
-              showError('Неверный пароль или код'); input.select();
+              return;
             }
+            loginSpecialist(val).then(function (sp) {
+              if (sp) {
+                clearAll();
+                ssSet(K.role, 'specialist');
+                ssSet(K.specialistTok, val);
+                ssSet(K.specialistId, sp.id);
+                ssSet(K.specialistName, sp.name);
+                location.reload();
+                return;
+              }
+              loginClient(val).then(function (client) {
+                if (client) {
+                  clearAll();
+                  ssSet(K.role, 'client');
+                  ssSet(K.clientTok, val);
+                  ssSet(K.clientId, client.id);
+                  ssSet(K.clientName, client.name);
+                  location.reload();
+                } else {
+                  showError('Неверный пароль или код'); input.select();
+                }
+              });
+            });
           });
         });
       });
@@ -160,6 +192,9 @@
   <script type="text/babel" src="AdminRequestsEditor.jsx"></script>
   <script type="text/babel" src="AdminSellersEditor.jsx"></script>
   <script type="text/babel" src="SalesDeals.jsx"></script>
+  <script type="text/babel" src="AdminClientsEditor.jsx"></script>
+  <script type="text/babel" src="SpecialistClients.jsx"></script>
+  <script type="text/babel" src="ClientCabinet.jsx"></script>
   <script type="text/babel" src="MyBookingsView.jsx"></script>
   <script type="text/babel" src="ProfileView.jsx"></script>
 

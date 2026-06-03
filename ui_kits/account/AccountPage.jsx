@@ -10,20 +10,34 @@
 // сам разбирает роль. Шлём оба, если оба есть — лишний заголовок не мешает.
 window.omAuth = {
   _get(k) { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } },
-  role()        { return this._get('omtime.role') || 'admin'; },
-  isAdmin()     { return this.role() === 'admin'; },
-  adminToken()  { return this._get('omtime.admin.token'); },
-  sellerToken() { return this._get('omtime.seller.token'); },
-  sellerId()    { return this._get('omtime.seller.id'); },
-  sellerName()  { return this._get('omtime.seller.name'); },
+  role()          { return this._get('omtime.role') || 'admin'; },
+  isAdmin()       { return this.role() === 'admin'; },
+  isSeller()      { return this.role() === 'seller'; },
+  isSpecialist()  { return this.role() === 'specialist'; },
+  isClient()      { return this.role() === 'client'; },
+  adminToken()      { return this._get('omtime.admin.token'); },
+  sellerToken()     { return this._get('omtime.seller.token'); },
+  sellerId()        { return this._get('omtime.seller.id'); },
+  sellerName()      { return this._get('omtime.seller.name'); },
+  specialistToken() { return this._get('omtime.specialist.token'); },
+  specialistId()    { return this._get('omtime.specialist.id'); },
+  specialistName()  { return this._get('omtime.specialist.name'); },
+  clientToken()     { return this._get('omtime.client.token'); },
+  clientId()        { return this._get('omtime.client.id'); },
+  clientName()      { return this._get('omtime.client.name'); },
   headers(extra) {
     const h = Object.assign({}, extra || {});
-    const a = this.adminToken(); if (a) h['x-admin-token'] = a;
-    const s = this.sellerToken(); if (s) h['x-seller-token'] = s;
+    const a = this.adminToken();      if (a) h['x-admin-token'] = a;
+    const s = this.sellerToken();     if (s) h['x-seller-token'] = s;
+    const sp = this.specialistToken(); if (sp) h['x-specialist-token'] = sp;
+    const c = this.clientToken();     if (c) h['x-client-token'] = c;
     return h;
   },
   logout() {
-    ['omtime.role', 'omtime.admin.token', 'omtime.seller.token', 'omtime.seller.id', 'omtime.seller.name']
+    ['omtime.role', 'omtime.admin.token',
+     'omtime.seller.token', 'omtime.seller.id', 'omtime.seller.name',
+     'omtime.specialist.token', 'omtime.specialist.id', 'omtime.specialist.name',
+     'omtime.client.token', 'omtime.client.id', 'omtime.client.name']
       .forEach(k => { try { sessionStorage.removeItem(k); } catch (e) {} });
     location.reload();
   },
@@ -56,9 +70,10 @@ const NAV_ADMIN = [
     { id: 'team',      label: 'Команда',       icon: 'users-round'   },
   ]},
   { group: 'Продажи', items: [
-    { id: 'requests',  label: 'Заявки',      icon: 'inbox'        },
+    { id: 'requests',  label: 'Заявки',      icon: 'inbox'          },
     { id: 'sellers',   label: 'Продажники',  icon: 'user-round-cog' },
-    { id: 'deals',     label: 'Сделки',      icon: 'handshake'    },
+    { id: 'deals',     label: 'Сделки',      icon: 'handshake'      },
+    { id: 'clients',   label: 'Клиенты',     icon: 'contact-round'  },
   ]},
   { group: 'Личное', items: [
     { id: 'bookings',  label: 'Мои записи',  icon: 'bookmark'    },
@@ -77,6 +92,26 @@ const NAV_SELLER = [
   ]},
 ];
 
+// Навигация специалиста — только прикреплённые клиенты.
+const NAV_SPECIALIST = [
+  { group: 'Работа', items: [
+    { id: 'spec-clients', label: 'Мои клиенты', icon: 'clipboard-list' },
+  ]},
+  { group: 'Личное', items: [
+    { id: 'profile',      label: 'Профиль',     icon: 'user-round' },
+  ]},
+];
+
+// Навигация клиента — личный кабинет с таблицами/графиками.
+const NAV_CLIENT = [
+  { group: 'Кабинет', items: [
+    { id: 'client-home', label: 'Мой кабинет', icon: 'layout-dashboard' },
+  ]},
+  { group: 'Личное', items: [
+    { id: 'profile',     label: 'Профиль',     icon: 'user-round' },
+  ]},
+];
+
 const initials = (name) => {
   const p = (name || '').trim().split(/\s+/).filter(Boolean);
   if (!p.length) return 'OM';
@@ -85,8 +120,18 @@ const initials = (name) => {
 
 function AccountPage() {
   const isAdmin = window.omAuth.isAdmin();
-  const nav = isAdmin ? NAV_ADMIN : NAV_SELLER;
-  const [section, setSection] = React.useState(isAdmin ? 'analytics' : 'requests');
+  const isSeller = window.omAuth.isSeller();
+  const isSpecialist = window.omAuth.isSpecialist();
+  const isClient = window.omAuth.isClient();
+  const nav = isAdmin ? NAV_ADMIN
+            : isSpecialist ? NAV_SPECIALIST
+            : isClient ? NAV_CLIENT
+            : NAV_SELLER;
+  const defaultSection = isAdmin ? 'analytics'
+            : isSpecialist ? 'spec-clients'
+            : isClient ? 'client-home'
+            : 'requests';
+  const [section, setSection] = React.useState(defaultSection);
   const [eventsCount, setEventsCount] = React.useState(null);
   const [freeLeads, setFreeLeads] = React.useState(0);   // свободных лидов (для продажника)
   const [leadToast, setLeadToast] = React.useState(null);
@@ -102,7 +147,7 @@ function AccountPage() {
   // /api/requests?free=1 и, если их стало больше, чем в прошлый раз, показываем
   // всплывашку. На пункте «Лиды» в навигации висит счётчик свободных.
   React.useEffect(() => {
-    if (isAdmin) return;
+    if (!isSeller) return;
     let alive = true;
     const poll = () => {
       fetch('/api/requests?free=1', { headers: window.omAuth.headers() })
@@ -125,26 +170,41 @@ function AccountPage() {
     poll();
     const t = setInterval(poll, 45000);
     return () => { alive = false; clearInterval(t); };
-  }, [isAdmin]);
+  }, [isSeller]);
 
-  const userName = isAdmin ? 'Администратор' : (window.omAuth.sellerName() || 'Продажник');
-  const userRole = isAdmin ? 'администратор' : 'продажник';
+  const userName = isAdmin ? 'Администратор'
+    : isSpecialist ? (window.omAuth.specialistName() || 'Специалист')
+    : isClient ? (window.omAuth.clientName() || 'Клиент')
+    : (window.omAuth.sellerName() || 'Продажник');
+  const userRole = isAdmin ? 'администратор'
+    : isSpecialist ? 'специалист'
+    : isClient ? 'клиент'
+    : 'продажник';
 
   function renderSection() {
-    // Защита от прямого доступа продажника к админ-разделам.
-    const adminOnly = ['analytics', 'schedule', 'carousel', 'programs', 'team', 'sellers', 'bookings'];
-    if (!isAdmin && adminOnly.includes(section)) return <ProfileView />;
+    // Защита от прямого доступа: каждая роль видит только свои разделы (+ профиль).
+    const allowed = {
+      admin:      ['analytics', 'schedule', 'carousel', 'programs', 'team', 'requests', 'sellers', 'deals', 'clients', 'bookings', 'profile'],
+      seller:     ['requests', 'deals', 'profile'],
+      specialist: ['spec-clients', 'profile'],
+      client:     ['client-home', 'profile'],
+    };
+    const role = isAdmin ? 'admin' : isSpecialist ? 'specialist' : isClient ? 'client' : 'seller';
+    if (!allowed[role].includes(section)) return <ProfileView />;
 
-    if (section === 'analytics') return <AdminAnalytics />;
-    if (section === 'schedule')  return <AdminScheduleEditor />;
-    if (section === 'carousel')  return <AdminHeroCarousel />;
-    if (section === 'programs')  return <AdminProgramsEditor />;
-    if (section === 'team')      return <AdminTeamEditor />;
-    if (section === 'requests')  return <AdminRequestsEditor />;
-    if (section === 'sellers')   return <AdminSellersEditor />;
-    if (section === 'deals')     return <SalesDeals />;
-    if (section === 'bookings')  return <MyBookingsView />;
-    if (section === 'profile')   return <ProfileView />;
+    if (section === 'analytics')    return <AdminAnalytics />;
+    if (section === 'schedule')     return <AdminScheduleEditor />;
+    if (section === 'carousel')     return <AdminHeroCarousel />;
+    if (section === 'programs')     return <AdminProgramsEditor />;
+    if (section === 'team')         return <AdminTeamEditor />;
+    if (section === 'requests')     return <AdminRequestsEditor />;
+    if (section === 'sellers')      return <AdminSellersEditor />;
+    if (section === 'deals')        return <SalesDeals />;
+    if (section === 'clients')      return <AdminClientsEditor />;
+    if (section === 'spec-clients') return <SpecialistClients />;
+    if (section === 'client-home')  return <ClientCabinet />;
+    if (section === 'bookings')     return <MyBookingsView />;
+    if (section === 'profile')      return <ProfileView />;
     return <PlaceholderSection id={section} />;
   }
 
