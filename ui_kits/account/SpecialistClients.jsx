@@ -72,6 +72,7 @@
     const [loaded, setLoaded] = useState(false);
     const [busy, setBusy] = useState(false);
     const endRef = useRef(null);
+    const scrollPending = useRef(false);   // скроллим к концу ленты только после своей отправки
 
     // Лента живёт в /api/clients?resource=activities (слита в clients.js ради
     // лимита Serverless-функций Vercel Hobby = 12). params — доп. query-параметры.
@@ -93,7 +94,11 @@
     useEffect(() => { if (clientId) load(); }, [clientId]);
     // Кэш ленты — чтобы сообщения рисовались мгновенно, а не всплывали после запроса.
     useEffect(() => { if (loaded) { try { localStorage.setItem(CK, JSON.stringify(items)); } catch (e) {} } }, [items, loaded]);
-    useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ block: 'nearest' }); }, [items.length]);
+    // Авто-скролл к последнему сообщению — ТОЛЬКО после отправки самим пользователем,
+    // не при загрузке/обновлении (иначе страница «прыгает» вниз к ленте при открытии).
+    useEffect(() => {
+      if (scrollPending.current && endRef.current) { scrollPending.current = false; endRef.current.scrollIntoView({ block: 'nearest' }); }
+    }, [items.length]);
 
     const send = () => {
       const t = text.trim();
@@ -101,7 +106,7 @@
       setBusy(true);
       api('POST', { clientId, type: 'note', text: t }).then(j => {
         setBusy(false);
-        if (j && j.ok && j.data) { setItems(cur => [...cur, j.data]); setText(''); }
+        if (j && j.ok && j.data) { scrollPending.current = true; setItems(cur => [...cur, j.data]); setText(''); }
       });
     };
     const remove = (id) => {
