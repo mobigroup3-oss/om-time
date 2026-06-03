@@ -125,7 +125,10 @@
             clearAll();
             ssSet(K.role, 'admin');
             ssSet(K.admin, val);
-            hide();
+            // Перезагружаем: приложение монтируется один раз при загрузке и
+            // читает роль тогда же. Без reload оно осталось бы в роли,
+            // выбранной до входа (по умолчанию — администратор).
+            location.reload();
             return;
           }
           // Не админ — пробуем как код продажника.
@@ -136,7 +139,7 @@
               ssSet(K.sellerTok, val);
               ssSet(K.sellerId, seller.id);
               ssSet(K.sellerName, seller.name);
-              hide();
+              location.reload();   // см. комментарий выше — нужен перерендер под роль
             } else {
               showError('Неверный пароль или код'); input.select();
             }
