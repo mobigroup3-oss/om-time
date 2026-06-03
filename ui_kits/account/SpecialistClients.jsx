@@ -291,7 +291,7 @@
 
   // Строка клиента в списке (внутри папки или в «Без папки»). Селект справа
   // перемещает клиента между папками, не открывая карточку.
-  function ClientRow({ client, groups, onOpen, onMove }) {
+  function ClientRow({ client, groups, onOpen, onMove, onRemove }) {
     return (
       <div style={GR.row} onClick={() => onOpen(client.id)}>
         <span style={DT.avatar}>{initials(client.name)}</span>
@@ -299,15 +299,65 @@
           <div style={{ fontWeight: 500, color: 'var(--om-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.name}</div>
           <div style={{ fontSize: 12, color: 'var(--om-muted)' }}>{programTitle(client.programId)}</div>
         </div>
-        <select
-          className="om-form-select" value={client.groupId || ''}
-          onClick={e => e.stopPropagation()}
-          onChange={e => onMove(client.id, e.target.value)}
-          style={GR.moveSel} title="Папка клиента">
-          <option value="">Без папки</option>
-          {groups.map(g => <option key={g.id} value={g.id}>{groupLabel(g)}</option>)}
-        </select>
+        {onRemove ? (
+          <button onClick={e => { e.stopPropagation(); onRemove(); }}
+            style={GR.rowBtn} title="Убрать из папки">
+            <LucideIcon name="folder-minus" size={15} style={{ marginRight: 6 }} /> Убрать
+          </button>
+        ) : (
+          <select
+            className="om-form-select" value={client.groupId || ''}
+            onClick={e => e.stopPropagation()}
+            onChange={e => onMove(client.id, e.target.value)}
+            style={GR.moveSel} title="Поместить в папку">
+            <option value="">{groups.length ? '↳ выбрать папку' : 'Без папки'}</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{groupLabel(g)}</option>)}
+          </select>
+        )}
         <LucideIcon name="chevron-right" size={18} style={{ color: 'var(--om-faint)', flexShrink: 0 }} />
+      </div>
+    );
+  }
+
+  // ── Пикер: добавить клиентов в папку ──
+  // Показывает клиентов специалиста, которых ещё нет в этой папке; клик добавляет.
+  function AddClientsPicker({ group, clients, onAdd, onClose }) {
+    const candidates = clients.filter(c => c.groupId !== group.id);
+    return (
+      <div className="om-modal-backdrop" onClick={onClose}>
+        <div className="om-modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+          <div className="om-modal-head">
+            <h2 className="om-modal-title">В папку «{groupLabel(group)}»</h2>
+            <button className="om-modal-close" onClick={onClose}><LucideIcon name="x" size={18} /></button>
+          </div>
+          <div className="om-modal-body" style={{ padding: 0 }}>
+            {candidates.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--om-faint)', fontSize: 13 }}>
+                Все ваши клиенты уже в этой папке.
+              </div>
+            ) : (
+              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                {candidates.map(c => {
+                  return (
+                    <div key={c.id} style={GR.pickRow} onClick={() => onAdd(c.id)}>
+                      <span style={DT.avatar}>{initials(c.name)}</span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 500, color: 'var(--om-ink)' }}>{c.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--om-muted)' }}>
+                          {programTitle(c.programId)}{c.groupId ? ' · сейчас в другой папке' : ''}
+                        </div>
+                      </div>
+                      <span style={GR.pickAdd}><LucideIcon name="plus" size={16} style={{ marginRight: 4 }} /> Добавить</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="om-modal-foot">
+            <button className="om-btn om-btn--secondary" onClick={onClose}>Готово</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -318,7 +368,11 @@
     const [loaded, setLoaded] = useState(false);
     const [openId, setOpenId] = useState(null);
     const [groupModal, setGroupModal] = useState(null);   // 'new' | group | null
+    const [pickerGroup, setPickerGroup] = useState(null); // папка, в которую добавляем клиентов
+    const [collapsed, setCollapsed] = useState({});       // { [groupId]: true } — свёрнутые папки
     const [toast, setToast] = useState(null);
+
+    const toggle = (id) => setCollapsed(c => ({ ...c, [id]: !c[id] }));
 
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
@@ -394,11 +448,14 @@
           <div style={GR.stack}>
             {groups.map(g => {
               const inGroup = items.filter(c => c.groupId === g.id);
+              const isOpen = !collapsed[g.id];
               return (
                 <div key={g.id} style={GR.folder}>
-                  <div style={GR.folderHead}>
+                  <div style={GR.folderHead} onClick={() => toggle(g.id)}>
                     <div style={GR.folderTitleWrap}>
-                      <LucideIcon name="folder" size={18} style={{ color: 'var(--om-gold-deep, #b8860b)', flexShrink: 0 }} />
+                      <LucideIcon name="chevron-right" size={16}
+                        style={{ color: 'var(--om-muted)', flexShrink: 0, transition: 'transform 0.18s', transform: isOpen ? 'rotate(90deg)' : 'none' }} />
+                      <LucideIcon name={isOpen ? 'folder-open' : 'folder'} size={18} style={{ color: 'var(--om-gold-deep, #b8860b)', flexShrink: 0 }} />
                       <div style={{ minWidth: 0 }}>
                         <div style={GR.folderTitle}>{groupLabel(g)}</div>
                         <div style={GR.folderMeta}>
@@ -417,18 +474,28 @@
                       </button>
                     </div>
                   </div>
-                  <div>
-                    {inGroup.length === 0
-                      ? <div style={GR.folderEmpty}>Пусто. Переместите сюда клиентов из списка ниже.</div>
-                      : inGroup.map(c => <ClientRow key={c.id} client={c} groups={groups} onOpen={setOpenId} onMove={move} />)}
-                  </div>
+                  {isOpen && (
+                    <div>
+                      {inGroup.length === 0
+                        ? <div style={GR.folderEmpty}>В папке пока нет клиентов.</div>
+                        : inGroup.map(c => (
+                            <ClientRow key={c.id} client={c} groups={groups} onOpen={setOpenId} onMove={move} onRemove={() => move(c.id, '')} />
+                          ))}
+                      <button style={GR.addBtn} onClick={() => setPickerGroup(g)}>
+                        <LucideIcon name="user-plus" size={15} style={{ marginRight: 7 }} />
+                        Добавить клиента в папку
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
 
             <div style={GR.folder}>
-              <div style={GR.folderHead}>
+              <div style={GR.folderHead} onClick={() => toggle('__ungrouped')}>
                 <div style={GR.folderTitleWrap}>
+                  <LucideIcon name="chevron-right" size={16}
+                    style={{ color: 'var(--om-muted)', flexShrink: 0, transition: 'transform 0.18s', transform: !collapsed.__ungrouped ? 'rotate(90deg)' : 'none' }} />
                   <LucideIcon name="users" size={18} style={{ color: 'var(--om-muted)', flexShrink: 0 }} />
                   <div>
                     <div style={GR.folderTitle}>{groups.length ? 'Без папки' : 'Все клиенты'}</div>
@@ -436,11 +503,15 @@
                   </div>
                 </div>
               </div>
-              <div>
-                {ungrouped.length === 0
-                  ? <div style={GR.folderEmpty}>Все клиенты разложены по папкам.</div>
-                  : ungrouped.map(c => <ClientRow key={c.id} client={c} groups={groups} onOpen={setOpenId} onMove={move} />)}
-              </div>
+              {!collapsed.__ungrouped && (
+                <div>
+                  {ungrouped.length === 0
+                    ? <div style={GR.folderEmpty}>Все клиенты разложены по папкам.</div>
+                    : ungrouped.map(c => (
+                        <ClientRow key={c.id} client={c} groups={groups} onOpen={setOpenId} onMove={move} />
+                      ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -451,6 +522,15 @@
             group={groupModal === 'new' ? null : groupModal}
             onClose={() => setGroupModal(null)}
             onSaved={onGroupSaved}
+          />
+        )}
+
+        {pickerGroup && (
+          <AddClientsPicker
+            group={pickerGroup}
+            clients={items}
+            onAdd={(clientId) => move(clientId, pickerGroup.id)}
+            onClose={() => setPickerGroup(null)}
           />
         )}
 
@@ -483,13 +563,17 @@
   const GR = {
     stack: { display: 'flex', flexDirection: 'column', gap: 16 },
     folder: { background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)', overflow: 'hidden' },
-    folderHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--om-hairline-soft, #eee)', background: 'var(--om-canvas-soft, #faf8f3)' },
+    folderHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--om-hairline-soft, #eee)', background: 'var(--om-canvas-soft, #faf8f3)', cursor: 'pointer' },
     folderTitleWrap: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
     folderTitle: { fontSize: 14.5, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
     folderMeta: { fontSize: 12, color: 'var(--om-muted)', marginTop: 1 },
     folderEmpty: { fontSize: 13, color: 'var(--om-faint)', padding: '16px' },
     row: { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--om-hairline-soft, #f0ece4)', cursor: 'pointer' },
     moveSel: { flexShrink: 0, maxWidth: 200, fontSize: 12.5, padding: '5px 8px', height: 'auto' },
+    rowBtn: { flexShrink: 0, fontSize: 12.5, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--om-muted)', background: 'var(--om-canvas-strong, #efe9dd)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-pill, 999px)' },
+    addBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '11px 16px', border: 'none', borderTop: '1px dashed var(--om-hairline)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, color: 'var(--om-indigo-deep, #3a2f6b)' },
+    pickRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px', borderBottom: '1px solid var(--om-hairline-soft, #f0ece4)', cursor: 'pointer' },
+    pickAdd: { display: 'inline-flex', alignItems: 'center', flexShrink: 0, fontSize: 12.5, fontWeight: 500, color: 'var(--om-indigo-deep, #3a2f6b)' },
   };
   const DT = {
     back: { display: 'inline-flex', alignItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--om-muted)', padding: 0 },
