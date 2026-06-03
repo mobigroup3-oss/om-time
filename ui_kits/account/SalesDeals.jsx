@@ -389,9 +389,9 @@
           )}
           {currentGoal > 0 && (
             <StatCard
-              label="Выполнение плана"
+              label={isAdmin && sellerFilter === 'all' ? 'Выполнение плана отдела' : 'Выполнение плана'}
               value={Math.round((paidTotal / currentGoal) * 100) + '%'}
-              hint={'из ' + fmtMoney(currentGoal)}
+              hint={'из ' + fmtMoney(currentGoal) + (isAdmin && sellerFilter === 'all' ? ' — сумма планов всех' : '')}
             />
           )}
         </div>
@@ -433,7 +433,7 @@
                     <th>Месяц</th>
                     <th>Сделок</th>
                     <th>Факт</th>
-                    <th>План</th>
+                    <th>{isAdmin && sellerFilter === 'all' ? 'План отдела' : 'План'}</th>
                     <th>Выполнение</th>
                   </tr>
                 </thead>
@@ -455,6 +455,11 @@
             {monthlyGoalRef === 0 && (
               <p style={{ fontSize: 12, color: 'var(--om-faint)', margin: '8px 2px 0' }}>
                 Чтобы видеть процент выполнения, задайте план продаж{isAdmin ? ' продажникам в разделе «Продажники»' : ''}.
+              </p>
+            )}
+            {monthlyGoalRef > 0 && isAdmin && sellerFilter === 'all' && (
+              <p style={{ fontSize: 12, color: 'var(--om-faint)', margin: '8px 2px 0' }}>
+                «План отдела» — сумма личных планов всех продажников. Чтобы видеть план конкретного человека, выберите его в фильтре.
               </p>
             )}
           </div>
