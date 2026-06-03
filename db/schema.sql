@@ -266,3 +266,48 @@ CREATE INDEX IF NOT EXISTS idx_client_groups_spec ON client_groups (specialist_i
 
 -- В какой папке лежит клиент (NULL = «Без папки»). Папку удалили → клиент выпадает из неё.
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS group_id TEXT REFERENCES client_groups(id) ON DELETE SET NULL;
+
+-- ── График снижения веса (кабинет клиента) ─────────────────
+-- Клиент в своём кабинете один раз задаёт старт программы: дату начала и
+-- стартовый вес. От них строятся три целевые прямые на 30 дней:
+--   −6%  = start_weight × 0.94   (красная линия)
+--   −10% = start_weight × 0.90   (синяя линия)
+--   −15% = start_weight × 0.85   (зелёная линия)
+-- Дальше клиент каждый день записывает фактический вес — это его личная
+-- (чёрная) линия. Специалист и админ график видят (только чтение).
+-- Даты храним TEXT (YYYY-MM-DD) — как group_date, без сюрпризов часовых поясов.
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS program_start TEXT;        -- дата старта программы YYYY-MM-DD
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS start_weight  NUMERIC(5,1); -- стартовый вес, кг (якорь целевых линий)
+
+-- Ежедневные замеры веса клиента (чёрная линия графика). Один замер на дату:
+-- повторная запись за тот же день перезаписывает значение (UPSERT по client_id+entry_date).
+CREATE TABLE IF NOT EXISTS client_weights (
+  id          BIGSERIAL PRIMARY KEY,
+  client_id   TEXT REFERENCES clients(id) ON DELETE CASCADE,
+  entry_date  TEXT NOT NULL,                       -- YYYY-MM-DD
+  weight      NUMERIC(5,1) NOT NULL,               -- кг
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (client_id, entry_date)
+);
+CREATE INDEX IF NOT EXISTS idx_client_weights ON client_weights (client_id, entry_date);
+
+-- ── Дневник питания (таблица под графиком) ─────────────────
+-- Нижняя таблица из бланка программы: строки-привычки × дни программы.
+-- Клиент отмечает выполнение по дням. Поля фиксированы (см. api/clients.js DIARY_FIELDS):
+--   log_before — «Запись перед едой»                (отметка)
+--   food_stock — «Пищевой запас»                    (отметка)
+--   oil        — «Масло раст.»                       (отметка)
+--   vitamins   — «Витамины»                          (отметка)
+--   ca_zn      — «Ca + Zn, клетчатка, пробиотики»    (отметка)
+--   spoons     — «Количество ложек»                  (число)
+-- Храним только заполненные клетки (пустая = строки нет). value TEXT: '1' для
+-- отметок, число строкой для spoons. Один замер на (клиент, дата, поле).
+CREATE TABLE IF NOT EXISTS client_diary (
+  client_id  TEXT REFERENCES clients(id) ON DELETE CASCADE,
+  entry_date TEXT NOT NULL,                          -- YYYY-MM-DD
+  field      TEXT NOT NULL,                          -- ключ строки (см. выше)
+  value      TEXT NOT NULL,                          -- '1' для отметок, число строкой для spoons
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (client_id, entry_date, field)
+);
+CREATE INDEX IF NOT EXISTS idx_client_diary ON client_diary (client_id, entry_date);

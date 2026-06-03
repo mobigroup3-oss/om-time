@@ -187,7 +187,10 @@
 
         <div style={DT.cols}>
           <div style={DT.colMain}>
-            <TablesPlaceholder />
+            <div style={DT.blockLabel}><LucideIcon name="line-chart" size={15} /> График снижения веса</div>
+            {window.WeightChart
+              ? <window.WeightChart clientId={client.id} readOnly />
+              : <TablesPlaceholder />}
             <div style={{ marginTop: 22 }}>
               <div style={DT.blockLabel}><LucideIcon name="messages-square" size={15} /> Комментарии</div>
               <ClientActivityThread clientId={client.id} canDelete={false} />

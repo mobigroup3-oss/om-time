@@ -29,6 +29,7 @@
     const [me, setMe] = useState(null);
     const [loaded, setLoaded] = useState(false);
     const ClientActivityThread = window.ClientActivityThread;
+    const WeightChart = window.WeightChart;
 
     useEffect(() => {
       fetch('/api/clients?action=me', { headers: auth().headers() })
@@ -56,17 +57,13 @@
 
         <div style={ST.cols}>
           <div style={ST.colMain}>
-            {/* Заглушка под таблицы/графики клиента — контент добавим позже. */}
-            <div style={ST.placeholder}>
-              <LucideIcon name="bar-chart-3" size={32} style={{ marginBottom: 12, opacity: 0.55 }} />
-              <div style={{ fontSize: 15, color: 'var(--om-ink)', fontWeight: 500, marginBottom: 4 }}>
-                Мои таблицы и графики
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--om-muted)', maxWidth: 440 }}>
-                Раздел готовится. Скоро здесь появятся таблицы и графики, которые вы будете
-                вести самостоятельно, а ваш специалист — просматривать и комментировать.
-              </div>
+            {/* График снижения веса: целевые линии −6/−10/−15% + фактический вес клиента. */}
+            <div style={ST.blockLabel}>
+              <LucideIcon name="line-chart" size={15} /> Мой график снижения веса
             </div>
+            {WeightChart && me
+              ? <WeightChart clientId={me.id} />
+              : <div style={{ fontSize: 13, color: 'var(--om-faint)' }}>Загрузка…</div>}
 
             <div style={{ marginTop: 22 }}>
               <div style={ST.blockLabel}>

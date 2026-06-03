@@ -211,6 +211,133 @@ async function handleActivities(req, res, sql) {
   return res.status(200).json({ ok: true, data: actToCanonical(ins.rows[0]) });
 }
 
+// График снижения веса (client_weights + clients.program_start/start_weight).
+// Старт программы (дата + стартовый вес) и ежедневные замеры задаёт сам клиент;
+// специалист этого клиента и админ видят график только на чтение.
+//   GET    ?resource=weights&clientId=…              → { setup:{startDate,startWeight}|null, entries:[{date,weight}] }
+//   POST   ?resource=weights&action=setup  { clientId?, startDate, startWeight } → задать старт (+ замер дня 0)
+//   POST   ?resource=weights               { clientId?, date, weight }          → записать вес за день (upsert)
+//   DELETE ?resource=weights&clientId=…&date=…       → удалить замер
+//   Запись: только сам клиент (свой clientId) ИЛИ админ. Чтение: + специалист клиента.
+async function handleWeights(req, res, sql) {
+  if (!sql) {
+    if (req.method === 'GET') return res.status(200).json({ ok: true, data: { setup: null, entries: [] } });
+    return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });
+  }
+  const who = await resolveActor(req, sql);
+  if (!who) return res.status(401).json({ ok: false, error: 'Нужна авторизация' });
+
+  // К какому клиенту обращаемся: явный clientId, иначе — сам клиент.
+  const selfId = who.actor.role === 'client' ? who.actor.id : null;
+  const clientId = (req.query && req.query.clientId) || selfId;
+  if (!clientId) return res.status(400).json({ ok: false, error: 'Нужен clientId' });
+
+  const canWrite = who.actor.role === 'admin' || (who.actor.role === 'client' && who.actor.id === clientId);
+
+  // валидаторы
+  const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+  const parseW = (w) => { const n = Number(w); return Number.isFinite(n) && n >= 20 && n <= 400 ? Math.round(n * 10) / 10 : null; };
+
+  if (req.method === 'GET') {
+    if (!(await who.can(clientId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому клиенту' });
+    const c = await sql`SELECT program_start, start_weight FROM clients WHERE id = ${clientId} LIMIT 1`;
+    if (!c.rows.length) return res.status(404).json({ ok: false, error: 'Клиент не найден' });
+    const row = c.rows[0];
+    const setup = (row.program_start && row.start_weight != null)
+      ? { startDate: String(row.program_start).slice(0, 10), startWeight: Number(row.start_weight) }
+      : null;
+    const e = await sql`SELECT entry_date, weight FROM client_weights WHERE client_id = ${clientId} ORDER BY entry_date ASC`;
+    const entries = e.rows.map(r => ({ date: String(r.entry_date).slice(0, 10), weight: Number(r.weight) }));
+    return res.status(200).json({ ok: true, data: { setup, entries } });
+  }
+
+  if (req.method === 'DELETE') {
+    if (!canWrite) return res.status(403).json({ ok: false, error: 'Замеры может менять только сам клиент' });
+    const date = req.query && req.query.date;
+    if (!isDate(date)) return res.status(400).json({ ok: false, error: 'Нужна дата замера (YYYY-MM-DD)' });
+    await sql`DELETE FROM client_weights WHERE client_id = ${clientId} AND entry_date = ${date}`;
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === 'POST') {
+    if (!canWrite) return res.status(403).json({ ok: false, error: 'Заполнять график может только сам клиент' });
+    const b = readJson(req);
+    const action = req.query && req.query.action;
+
+    // Старт программы: дата начала + стартовый вес. Day 0 заодно пишем как первый замер.
+    if (action === 'setup') {
+      if (!isDate(b.startDate)) return res.status(422).json({ ok: false, errors: { startDate: 'Укажите дату начала' } });
+      const sw = parseW(b.startWeight);
+      if (sw == null) return res.status(422).json({ ok: false, errors: { startWeight: 'Вес от 20 до 400 кг' } });
+      await sql`UPDATE clients SET program_start = ${b.startDate}, start_weight = ${sw} WHERE id = ${clientId}`;
+      await sql`
+        INSERT INTO client_weights (client_id, entry_date, weight)
+        VALUES (${clientId}, ${b.startDate}, ${sw})
+        ON CONFLICT (client_id, entry_date) DO UPDATE SET weight = EXCLUDED.weight`;
+      return res.status(200).json({ ok: true, data: { setup: { startDate: b.startDate, startWeight: sw } } });
+    }
+
+    // Ежедневный замер (upsert по дате).
+    if (!isDate(b.date)) return res.status(422).json({ ok: false, errors: { date: 'Укажите дату' } });
+    const w = parseW(b.weight);
+    if (w == null) return res.status(422).json({ ok: false, errors: { weight: 'Вес от 20 до 400 кг' } });
+    const ins = await sql`
+      INSERT INTO client_weights (client_id, entry_date, weight)
+      VALUES (${clientId}, ${b.date}, ${w})
+      ON CONFLICT (client_id, entry_date) DO UPDATE SET weight = EXCLUDED.weight
+      RETURNING entry_date, weight`;
+    return res.status(200).json({ ok: true, data: { date: String(ins.rows[0].entry_date).slice(0, 10), weight: Number(ins.rows[0].weight) } });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
+// Дневник питания (client_diary) — таблица-привычки под графиком. Поля фиксированы.
+// Заполняет сам клиент, специалист/админ смотрят. Доступ — как у графика веса.
+//   GET    ?resource=diary&clientId=…                       → { entries:[{date,field,value}] }
+//   POST   ?resource=diary { clientId?, date, field, value } → отметить клетку (пустое value = снять)
+const DIARY_FIELDS = ['log_before', 'food_stock', 'oil', 'vitamins', 'ca_zn', 'spoons'];
+
+async function handleDiary(req, res, sql) {
+  if (!sql) {
+    if (req.method === 'GET') return res.status(200).json({ ok: true, data: { entries: [] } });
+    return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });
+  }
+  const who = await resolveActor(req, sql);
+  if (!who) return res.status(401).json({ ok: false, error: 'Нужна авторизация' });
+
+  const selfId = who.actor.role === 'client' ? who.actor.id : null;
+  const clientId = (req.query && req.query.clientId) || selfId;
+  if (!clientId) return res.status(400).json({ ok: false, error: 'Нужен clientId' });
+  const canWrite = who.actor.role === 'admin' || (who.actor.role === 'client' && who.actor.id === clientId);
+
+  if (req.method === 'GET') {
+    if (!(await who.can(clientId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому клиенту' });
+    const e = await sql`SELECT entry_date, field, value FROM client_diary WHERE client_id = ${clientId} ORDER BY entry_date ASC`;
+    const entries = e.rows.map(r => ({ date: String(r.entry_date).slice(0, 10), field: r.field, value: r.value }));
+    return res.status(200).json({ ok: true, data: { entries } });
+  }
+
+  if (req.method === 'POST') {
+    if (!canWrite) return res.status(403).json({ ok: false, error: 'Заполнять дневник может только сам клиент' });
+    const b = readJson(req);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.date || ''))) return res.status(422).json({ ok: false, errors: { date: 'Укажите дату' } });
+    if (!DIARY_FIELDS.includes(b.field)) return res.status(422).json({ ok: false, errors: { field: 'Неизвестное поле' } });
+    const value = String(b.value == null ? '' : b.value).trim().slice(0, 16);
+    if (!value) {
+      await sql`DELETE FROM client_diary WHERE client_id = ${clientId} AND entry_date = ${b.date} AND field = ${b.field}`;
+      return res.status(200).json({ ok: true, data: { date: b.date, field: b.field, value: '' } });
+    }
+    await sql`
+      INSERT INTO client_diary (client_id, entry_date, field, value, updated_at)
+      VALUES (${clientId}, ${b.date}, ${b.field}, ${value}, now())
+      ON CONFLICT (client_id, entry_date, field) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
+    return res.status(200).json({ ok: true, data: { date: b.date, field: b.field, value } });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
 export default async function handler(req, res) {
   if (handlePreflight(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
   const sql = await getSql();
@@ -218,6 +345,12 @@ export default async function handler(req, res) {
 
   // Лента кабинета клиента — отдельная ветка (см. handleActivities выше).
   if (req.query && req.query.resource === 'activities') return handleActivities(req, res, sql);
+
+  // График снижения веса — отдельная ветка (см. handleWeights выше).
+  if (req.query && req.query.resource === 'weights') return handleWeights(req, res, sql);
+
+  // Дневник питания — отдельная ветка (см. handleDiary выше).
+  if (req.query && req.query.resource === 'diary') return handleDiary(req, res, sql);
 
   // Папки/группы клиентов специалиста — отдельная ветка (см. handleGroups выше).
   if (req.query && req.query.resource === 'groups') return handleGroups(req, res, sql);
