@@ -167,6 +167,7 @@ const pgStyles = {
     fontFamily: 'var(--om-font-sans)',
     fontWeight: 500,
     letterSpacing: '-0.03em',
+    color: 'var(--om-coral-deep)',
   },
   heroSub: {
     fontSize: 18,

@@ -82,6 +82,32 @@
       <div style={S.chartWrap}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img"
           aria-label="График снижения веса: целевые линии −6%, −10%, −15% и фактический вес клиента">
+          <defs>
+            {/* мягкое свечение под линией клиента — выделяет её среди целевых */}
+            <filter id="omClientGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="3" floodColor={CLIENT_COLOR} floodOpacity="0.35" />
+            </filter>
+            <style>{`
+              .om-wc-line {
+                stroke-dasharray: 1;
+                stroke-dashoffset: 1;
+                animation: om-wc-draw 1.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+              }
+              @keyframes om-wc-draw { to { stroke-dashoffset: 0; } }
+              .om-wc-pulse {
+                animation: om-wc-pulse 2.4s ease-out infinite;
+              }
+              @keyframes om-wc-pulse {
+                0%   { transform: scale(1);   opacity: 0.6; }
+                70%  { transform: scale(2.6); opacity: 0; }
+                100% { transform: scale(2.6); opacity: 0; }
+              }
+              @media (prefers-reduced-motion: reduce) {
+                .om-wc-line { animation: none; stroke-dashoffset: 0; }
+                .om-wc-pulse { animation: none; opacity: 0; }
+              }
+            `}</style>
+          </defs>
           {/* горизонтальная сетка + подписи кг */}
           {yTicks.map(w => (
             <g key={'y' + w}>
@@ -101,19 +127,39 @@
           <line x1={M.l} y1={M.t} x2={M.l} y2={M.t + ph} stroke={axis} strokeWidth="1.5" />
           <line x1={M.l} y1={M.t + ph} x2={W - M.r} y2={M.t + ph} stroke={axis} strokeWidth="1.5" />
 
-          {/* целевые прямые: старт → цель на день 30 */}
+          {/* целевые прямые: старт → цель на день 30 — приглушены, служат фоном-ориентиром */}
           {targets.map(t => (
-            <g key={t.pct}>
+            <g key={t.pct} opacity="0.5">
               <line x1={xs(0)} y1={ys(sw)} x2={xs(PROGRAM_DAYS)} y2={ys(t.weight)}
-                stroke={t.color} strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx={xs(PROGRAM_DAYS)} cy={ys(t.weight)} r="3.5" fill={t.color} />
+                stroke={t.color} strokeWidth="2" strokeLinecap="round" strokeDasharray="1 6" />
+              <circle cx={xs(PROGRAM_DAYS)} cy={ys(t.weight)} r="3" fill={t.color} />
               <text x={xs(PROGRAM_DAYS) + 7} y={ys(t.weight) + 4} style={{ ...S.targetLabel, fill: t.color }}>{t.pct} %</text>
             </g>
           ))}
 
-          {/* линия клиента (чёрная) */}
-          {pts.length > 1 && <path d={clientPath} fill="none" stroke={CLIENT_COLOR} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />}
-          {pts.map(p => <circle key={'p' + p.day} cx={xs(p.day)} cy={ys(p.weight)} r="3.5" fill={CLIENT_COLOR} />)}
+          {/* линия клиента — главный элемент: толстая, со свечением и прорисовкой */}
+          {pts.length > 1 && (
+            <path className="om-wc-line" pathLength="1" d={clientPath} fill="none" stroke={CLIENT_COLOR}
+              strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" filter="url(#omClientGlow)" />
+          )}
+          {pts.map((p, i) => {
+            const isLast = i === pts.length - 1;
+            const cx = xs(p.day), cy = ys(p.weight);
+            if (!isLast) {
+              return <circle key={'p' + p.day} cx={cx} cy={cy} r="4" fill={CLIENT_COLOR} stroke="#fff" strokeWidth="2" />;
+            }
+            // последний замер — акцентный маркер с «пульсом» и подписью текущего веса
+            const above = cy - 16 > M.t + 8;
+            const ly = above ? cy - 14 : cy + 22;
+            return (
+              <g key={'p' + p.day}>
+                <circle className="om-wc-pulse" cx={cx} cy={cy} r="6" fill="none" stroke={CLIENT_COLOR} strokeWidth="2"
+                  style={{ transformOrigin: `${cx}px ${cy}px` }} />
+                <circle cx={cx} cy={cy} r="5.5" fill={CLIENT_COLOR} stroke="#fff" strokeWidth="2.5" />
+                <text x={cx} y={ly} textAnchor="middle" style={S.clientLabel}>{p.weight} кг</text>
+              </g>
+            );
+          })}
         </svg>
       </div>
     );
@@ -129,8 +175,8 @@
     return (
       <div style={S.legend}>
         {items.map((it, i) => (
-          <span key={i} style={S.legendItem}>
-            <span style={{ ...S.legendDot, background: it.color }} />{it.text}
+          <span key={i} style={{ ...S.legendItem, ...(i === 0 ? S.legendItemActive : null) }}>
+            <span style={{ ...S.legendDot, background: it.color, ...(i === 0 ? S.legendDotActive : null) }} />{it.text}
           </span>
         ))}
       </div>
@@ -374,9 +420,15 @@
     chartWrap: { marginTop: 6 },
     axisLabel: { fontSize: '11px', fill: 'var(--om-muted, #8a8275)', fontFamily: 'inherit' },
     targetLabel: { fontSize: '12px', fontWeight: 600, fontFamily: 'inherit' },
+    clientLabel: {
+      fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', fill: CLIENT_COLOR,
+      stroke: '#fff', strokeWidth: 3.5, paintOrder: 'stroke', strokeLinejoin: 'round',
+    },
     legend: { display: 'flex', flexWrap: 'wrap', gap: '8px 18px', marginTop: 10, paddingTop: 12, borderTop: '1px solid var(--om-hairline-soft, #efe9df)' },
     legendItem: { display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--om-ink)' },
+    legendItemActive: { fontWeight: 700 },
     legendDot: { width: 14, height: 3, borderRadius: 2, display: 'inline-block' },
+    legendDotActive: { width: 18, height: 5, boxShadow: `0 0 0 3px ${CLIENT_COLOR}1f` },
     setupBox: {
       background: 'var(--om-canvas-white)', border: '1px dashed var(--om-hairline)',
       borderRadius: 'var(--om-radius-lg, 16px)', padding: '28px 24px',

@@ -870,7 +870,7 @@ function TeamPage() {
             команда · {team.length} специалистов
           </div>
           <h1 style={tm.heroH1}>
-            Команда<br />OM&nbsp;Time
+            Команда<br /><span style={{ color: 'var(--om-coral-deep)' }}>OM&nbsp;Time</span>
           </h1>
           <p style={tm.heroSub}>
             Каждый специалист центра — часть авторской методики «Вес идеальности». Работаем как единая система, а не набор отдельных кабинетов.
