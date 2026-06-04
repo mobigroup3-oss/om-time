@@ -113,12 +113,14 @@
     blockLabel: { display: 'flex', alignItems: 'center', gap: 7, margin: '2px 0 12px', fontSize: 13, fontWeight: 600, color: 'var(--om-ink)' },
     loadingTxt: { fontSize: 13, color: 'var(--om-faint)' },
     specCard: {
-      flex: '0 0 auto', minWidth: 210, background: 'var(--om-canvas-white)',
-      border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)',
-      padding: '12px 16px', boxShadow: 'var(--om-shadow-card)',
+      flex: '0 0 auto', minWidth: 210,
+      background: 'var(--om-glass, rgba(255,255,255,0.66))',
+      backdropFilter: 'blur(14px) saturate(1.1)', WebkitBackdropFilter: 'blur(14px) saturate(1.1)',
+      border: '1px solid var(--om-glass-line, rgba(255,255,255,0.7))', borderRadius: 'var(--om-radius-lg, 16px)',
+      padding: '12px 16px', boxShadow: 'var(--om-shadow-aurora, 0 12px 32px rgba(27,24,64,0.08))',
     },
-    specCap: { fontSize: 10.5, fontWeight: 600, color: 'var(--om-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 9 },
-    avatar: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: 'var(--om-lilac)', color: 'var(--om-indigo-deep)', fontSize: 14, fontWeight: 600 },
+    specCap: { fontSize: 10.5, fontWeight: 600, color: 'var(--om-coral-deep, #8C2528)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 9 },
+    avatar: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(140deg, var(--om-indigo), #5b3fb0 55%, var(--om-coral))', color: '#fff', fontSize: 14, fontWeight: 600, boxShadow: '0 8px 18px rgba(46,36,112,0.32)' },
     avatarImg: { width: 40, height: 40, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', display: 'block' },
   };
 

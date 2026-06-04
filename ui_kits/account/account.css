@@ -758,3 +758,284 @@ html, body { background: var(--om-canvas); }
 @keyframes om-rev-rise { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
 .om-rev-bar { transform-origin: bottom; animation: om-rev-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .om-rev-bar { animation: none; } }
+
+
+/* ====================================================================
+   AURORA REDESIGN LAYER  ·  личный кабинет OM Time
+   --------------------------------------------------------------------
+   «Живой» тёплый фон + стекло. Один слой переопределяет общую оболочку
+   для всех ролей (админ / продажник / специалист / клиент). Спокойный,
+   но дорогой вид — в рамках бренда (терапия, не финтех-дашборд).
+   Всё построено на токенах --om-*. Полностью откатывается удалением
+   этого блока. Анимации глушатся prefers-reduced-motion.
+   ==================================================================== */
+
+:root {
+  /* Локальные токены Aurora — производные от бренд-пигментов */
+  --om-glass:        rgba(255, 255, 255, 0.66);
+  --om-glass-strong: rgba(255, 255, 255, 0.82);
+  --om-glass-line:   rgba(255, 255, 255, 0.7);
+  --om-aurora-gold:  rgba(242, 193, 46, 0.20);
+  --om-aurora-coral: rgba(192, 58, 59, 0.13);
+  --om-aurora-lilac: rgba(200, 191, 224, 0.34);
+  --om-aurora-indigo:rgba(46, 36, 112, 0.10);
+  --om-shadow-aurora: 0 1px 2px rgba(27,24,64,0.04),
+                      0 12px 32px rgba(27,24,64,0.08),
+                      0 2px 10px rgba(192,58,59,0.04);
+  --om-shadow-aurora-lift: 0 6px 14px rgba(27,24,64,0.08),
+                           0 28px 60px rgba(27,24,64,0.16),
+                           0 4px 18px rgba(192,58,59,0.07);
+}
+
+/* ── Живой фон: фиксированный мягкий mesh за всем контентом ──────── */
+html, body { background: var(--om-canvas); }
+
+.om-account-shell {
+  position: relative;
+  background: var(--om-canvas);
+  isolation: isolate;
+}
+.om-account-shell::before {
+  content: '';
+  position: fixed;
+  inset: -10vmax;            /* запас, чтобы дрейф не оголял края */
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 48% at 12% 6%,  var(--om-aurora-gold),  transparent 70%),
+    radial-gradient(34% 42% at 90% 18%, var(--om-aurora-coral), transparent 70%),
+    radial-gradient(46% 52% at 82% 92%, var(--om-aurora-lilac), transparent 72%),
+    radial-gradient(42% 48% at 16% 96%, var(--om-aurora-indigo),transparent 70%);
+  filter: saturate(1.05);
+  animation: om-aurora-drift 34s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes om-aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-1.6%, 1.4%, 0) scale(1.07); }
+}
+
+/* Контент — поверх mesh */
+.om-acc-side, .om-acc-main { position: relative; z-index: 1; }
+
+/* ── Sidebar: тёплое стекло ──────────────────────────────────────── */
+.om-acc-side {
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.78), rgba(251,248,242,0.62));
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: blur(18px) saturate(1.15);
+  border-right: 1px solid var(--om-glass-line);
+  box-shadow: 1px 0 0 rgba(255,255,255,0.5), 18px 0 50px rgba(27,24,64,0.05);
+}
+.om-acc-brand img {
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(242,193,46,0.28);
+}
+.om-acc-brand-name {
+  background: linear-gradient(92deg, var(--om-ink), #4a3fa0 60%, var(--om-coral-deep));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  font-weight: 600;
+}
+
+/* Карточка пользователя — мягкое стекло с цветным контуром */
+.om-acc-user {
+  background: var(--om-glass);
+  border: 1px solid var(--om-glass-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 8px 20px rgba(27,24,64,0.06);
+}
+.om-acc-user-avatar {
+  background: linear-gradient(140deg, var(--om-indigo), #5b3fb0 55%, var(--om-coral));
+  box-shadow: 0 8px 18px rgba(46,36,112,0.32);
+  position: relative;
+}
+.om-acc-user-avatar::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.45);
+}
+
+/* ── Навигация: стеклянные пункты + градиент-активность ──────────── */
+.om-acc-nav button {
+  position: relative;
+  transition: background 180ms var(--om-ease-standard),
+              color 180ms var(--om-ease-standard),
+              transform 180ms var(--om-ease-standard);
+}
+.om-acc-nav button:hover {
+  background: rgba(255,255,255,0.6);
+  color: var(--om-ink);
+  transform: translateX(2px);
+}
+.om-acc-nav button[data-active="true"],
+.om-acc-nav button[data-active="true"]:hover {
+  background: linear-gradient(135deg, var(--om-indigo), #3f2f8c 70%, #5b3fb0);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(46,36,112,0.34),
+              inset 0 1px 0 rgba(255,255,255,0.18);
+  transform: none;
+}
+/* Левый световой индикатор активного пункта */
+.om-acc-nav button[data-active="true"]::before {
+  content: ''; position: absolute; left: -8px; top: 50%;
+  width: 4px; height: 20px; transform: translateY(-50%);
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, var(--om-gold), var(--om-coral));
+  box-shadow: 0 0 12px rgba(242,193,46,0.7);
+}
+.om-acc-nav-count {
+  background: rgba(255,255,255,0.16);
+  padding: 1px 7px; border-radius: 999px; opacity: 1;
+}
+
+.om-acc-side-foot a:hover { background: rgba(255,255,255,0.6); color: var(--om-ink); }
+
+/* ── Заголовок раздела: воздух + градиентный eyebrow ────────────── */
+.om-acc-head { border-bottom-color: var(--om-glass-line); }
+.om-acc-eyebrow {
+  color: var(--om-coral-deep);
+  font-weight: 600;
+}
+.om-acc-eyebrow::before {
+  width: 28px; height: 2px; border-radius: 2px; opacity: 1;
+  background: linear-gradient(90deg, var(--om-gold), var(--om-coral));
+}
+.om-acc-title {
+  font-size: 40px; font-weight: 600; letter-spacing: -0.025em;
+}
+.om-acc-sub { font-size: 14.5px; }
+
+/* Появление контента раздела (играет и при переключении вкладок) */
+.om-acc-head { animation: om-acc-rise 560ms var(--om-ease-out) both; }
+.om-acc-main > .om-adm-toolbar,
+.om-acc-main > .om-stat-grid,
+.om-acc-main > .om-chart-grid,
+.om-acc-main > .om-adm-table-wrap,
+.om-acc-main > .om-req-list {
+  animation: om-acc-rise 620ms var(--om-ease-out) both;
+  animation-delay: 80ms;
+}
+@keyframes om-acc-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Универсальное стекло для всех «карточных» поверхностей ──────── */
+.om-adm-months,
+.om-adm-table-wrap,
+.om-stat-card,
+.om-chart-card,
+.om-req-card,
+.om-seg {
+  background: var(--om-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  border-color: var(--om-glass-line);
+  box-shadow: var(--om-shadow-aurora);
+}
+.om-adm-table thead th { background: rgba(251,248,242,0.6); }
+.om-adm-table tbody tr:hover { background: rgba(255,255,255,0.55); }
+
+/* ── KPI-карточки: стекло + угловое свечение + подъём на hover ──── */
+.om-stat-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 260ms var(--om-ease-out),
+              box-shadow 260ms var(--om-ease-out);
+}
+.om-stat-card::after {
+  content: ''; position: absolute; right: -30px; top: -30px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, var(--om-glow, rgba(242,193,46,0.28)), transparent 68%);
+  pointer-events: none; transition: opacity 260ms ease; opacity: 0.85;
+}
+.om-stat-grid .om-stat-card:nth-child(1) { --om-glow: rgba(242,193,46,0.30); }
+.om-stat-grid .om-stat-card:nth-child(2) { --om-glow: rgba(192,58,59,0.22); }
+.om-stat-grid .om-stat-card:nth-child(3) { --om-glow: rgba(78,107,63,0.22); }
+.om-stat-grid .om-stat-card:nth-child(4) { --om-glow: rgba(91,63,176,0.22); }
+.om-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--om-shadow-aurora-lift);
+}
+.om-stat-card:hover::after { opacity: 1; }
+.om-stat-icon {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5),
+              0 6px 14px rgba(27,24,64,0.10);
+}
+.om-stat-value { font-weight: 600; letter-spacing: -0.02em; }
+
+/* ── Chart-карточки ─────────────────────────────────────────────── */
+.om-chart-card { transition: box-shadow 260ms var(--om-ease-out); }
+.om-chart-card:hover { box-shadow: var(--om-shadow-aurora-lift); }
+
+/* ── Сегмент-контрол: активная — градиент ───────────────────────── */
+.om-seg-btn.is-active {
+  background: linear-gradient(135deg, var(--om-indigo), #5b3fb0);
+  box-shadow: 0 6px 16px rgba(46,36,112,0.30);
+}
+
+/* ── Карточки заявок: усиленное стекло + глубина на hover ────────── */
+.om-req-card:hover {
+  box-shadow: var(--om-shadow-aurora-lift);
+  background: var(--om-glass-strong);
+}
+.om-req-avatar {
+  background: linear-gradient(140deg, var(--om-indigo), #5b3fb0 55%, var(--om-coral));
+}
+
+/* ── Поиск / селекты тулбара: лёгкое стекло ──────────────────────── */
+.om-adm-search, .om-adm-select {
+  background: var(--om-glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-color: var(--om-glass-line);
+}
+.om-adm-search:focus-within {
+  border-color: var(--om-indigo);
+  box-shadow: 0 0 0 3px rgba(91,63,176,0.16);
+}
+
+/* ── Кнопки «Добавить …»: фирменная тень-подсветка ──────────────── */
+.om-acc-main .om-btn--primary {
+  box-shadow: 0 10px 24px rgba(46,36,112,0.26);
+}
+
+/* ── Модалки: стекло + более глубокий backdrop ──────────────────── */
+.om-modal-backdrop {
+  background: rgba(20, 16, 56, 0.46);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.om-modal {
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(251,248,242,0.92));
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid var(--om-glass-line);
+  box-shadow: 0 32px 80px rgba(27,24,64,0.28);
+}
+
+/* ── Toast: фирменный градиент ──────────────────────────────────── */
+.om-toast {
+  background: linear-gradient(135deg, var(--om-indigo), #5b3fb0 70%, var(--om-coral));
+  box-shadow: 0 18px 40px rgba(46,36,112,0.34);
+}
+
+/* ── Деликатность к производительности и доступности ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .om-account-shell::before { animation: none; }
+  .om-acc-head,
+  .om-acc-main > .om-adm-toolbar,
+  .om-acc-main > .om-stat-grid,
+  .om-acc-main > .om-chart-grid,
+  .om-acc-main > .om-adm-table-wrap,
+  .om-acc-main > .om-req-list { animation: none; }
+  .om-stat-card:hover, .om-req-card:hover { transform: none; }
+}
+
+/* На узких экранах стекло-сайдбар становится статической полосой —
+   убираем тяжёлый блюр ради скролл-производительности на Android. */
+@media (max-width: 1024px) {
+  .om-acc-side {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background: rgba(255,255,255,0.86);
+  }
+}

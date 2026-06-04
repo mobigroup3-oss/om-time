@@ -612,8 +612,8 @@
   };
   const GR = {
     stack: { display: 'flex', flexDirection: 'column', gap: 16 },
-    folder: { background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)', overflow: 'hidden' },
-    folderHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--om-hairline-soft, #eee)', background: 'var(--om-canvas-soft, #faf8f3)', cursor: 'pointer' },
+    folder: { background: 'var(--om-glass, rgba(255,255,255,0.66))', backdropFilter: 'blur(14px) saturate(1.1)', WebkitBackdropFilter: 'blur(14px) saturate(1.1)', border: '1px solid var(--om-glass-line, rgba(255,255,255,0.7))', borderRadius: 'var(--om-radius-lg, 16px)', overflow: 'hidden', boxShadow: 'var(--om-shadow-aurora, 0 12px 32px rgba(27,24,64,0.08))' },
+    folderHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--om-hairline-soft, #eee)', background: 'linear-gradient(180deg, rgba(255,255,255,0.5), rgba(251,248,242,0.3))', cursor: 'pointer' },
     folderTitleWrap: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
     folderTitle: { fontSize: 14.5, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
     folderMeta: { fontSize: 12, color: 'var(--om-muted)', marginTop: 1 },
