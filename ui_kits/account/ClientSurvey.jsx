@@ -21,8 +21,11 @@
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState(null);
     const [error, setError] = useState('');
+    // Вид: 'form' — заполнение, 'done' — свёрнутое подтверждение с краткой сводкой.
+    // После сохранения и при повторном заходе с уже заполненной анкетой — 'done'.
+    const [mode, setMode] = useState('form');
 
-    // Подгрузить ранее заполненную анкету (если есть) — для правки.
+    // Подгрузить ранее заполненную анкету (если есть) — показать свёрнутой.
     useEffect(() => {
       fetch('/api/clients?resource=survey', { headers: auth().headers() })
         .then(r => r.ok ? r.json() : null)
@@ -30,6 +33,7 @@
           if (j && j.ok && j.data) {
             setAnswers(j.data.answers || {});
             setSubmittedAt(j.data.submittedAt || null);
+            setMode('done');
           }
           setLoaded(true);
         })
@@ -56,6 +60,8 @@
         .then(j => {
           setSubmittedAt((j.data && j.data.submittedAt) || new Date().toISOString());
           if (j.data && j.data.answers) setAnswers(j.data.answers);
+          setMode('done');                    // свернуть форму в подтверждение
+          window.scrollTo({ top: 0, behavior: 'smooth' });
           setToast('Спасибо! Ваша анкета сохранена.');
           setTimeout(() => setToast(null), 4500);
         })
@@ -67,19 +73,55 @@
       ? new Date(submittedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
       : null;
 
+    const done = loaded && mode === 'done';
+
     return (
       <React.Fragment>
         <div className="om-acc-head" style={{ display: 'block' }}>
           <div className="om-acc-eyebrow">Кабинет</div>
           <h1 className="om-acc-title">Анкета обратной связи</h1>
           <p className="om-acc-sub" style={{ marginBottom: 0 }}>
-            Помогите нам стать лучше — расскажите о вашей программе. Ответы видит только команда центра.
-            {submittedLabel && <span style={{ color: 'var(--om-sage-deep, #4E6B3F)', fontWeight: 600 }}>{' '}Заполнено {submittedLabel} — можно изменить.</span>}
+            {done
+              ? 'Ваши ответы сохранены — спасибо! При желании их можно изменить.'
+              : 'Помогите нам стать лучше — расскажите о вашей программе. Ответы видит только команда центра.'}
           </p>
         </div>
 
         {!loaded ? (
           <div style={ST.loading}>Загрузка…</div>
+        ) : done ? (
+          /* ── Свёрнутое подтверждение: спасибо + дата + сводка ответов ── */
+          <div style={ST.wrap}>
+            <div style={ST.doneCard}>
+              <span style={ST.doneIcon}><LucideIcon name="check" size={26} /></span>
+              <div style={{ minWidth: 0 }}>
+                <div style={ST.doneTitle}>Анкета заполнена</div>
+                <div style={ST.doneSub}>
+                  {submittedLabel ? `Сохранено ${submittedLabel}. ` : ''}Спасибо, что поделились — это помогает нам становиться лучше.
+                </div>
+              </div>
+              <button className="om-btn om-btn--secondary" style={ST.editBtn}
+                onClick={() => { setError(''); setMode('form'); }}>
+                <LucideIcon name="pencil" size={15} style={{ marginRight: 7 }} />
+                Изменить ответы
+              </button>
+            </div>
+
+            <div style={ST.recap}>
+              {questions.map((q) => {
+                const v = answers[q.id];
+                const has = v != null && String(v).trim() !== '';
+                return (
+                  <div key={q.id} style={ST.recapRow}>
+                    <div style={ST.recapQ}>{q.label}</div>
+                    <div style={Object.assign({}, ST.recapA, has ? null : ST.recapEmpty)}>
+                      {has ? (q.type === 'number' && q.unit ? `${v} ${q.unit}` : String(v)) : '—'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div style={ST.wrap}>
             {questions.map((q, i) => (
@@ -98,10 +140,17 @@
 
             <div style={ST.footer}>
               <span style={ST.progress}>Заполнено {filledCount} из {questions.length}</span>
-              <button className="om-btn" style={ST.submitBtn} onClick={submit} disabled={saving}>
-                <LucideIcon name={saving ? 'loader' : 'send'} size={16} style={{ marginRight: 8 }} />
-                {saving ? 'Сохранение…' : (submittedAt ? 'Сохранить изменения' : 'Отправить анкету')}
-              </button>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {submittedAt && (
+                  <button className="om-btn om-btn--secondary" onClick={() => { setError(''); setMode('done'); }} disabled={saving}>
+                    Отмена
+                  </button>
+                )}
+                <button className="om-btn" style={ST.submitBtn} onClick={submit} disabled={saving}>
+                  <LucideIcon name={saving ? 'loader' : 'send'} size={16} style={{ marginRight: 8 }} />
+                  {saving ? 'Сохранение…' : (submittedAt ? 'Сохранить изменения' : 'Отправить анкету')}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -212,6 +261,36 @@
       display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5,
       color: 'var(--om-coral, #C03A3B)', padding: '2px 2px',
     },
+    // ── Свёрнутое подтверждение ──
+    doneCard: {
+      display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+      background: 'var(--om-glass, rgba(255,255,255,0.66))',
+      backdropFilter: 'blur(14px) saturate(1.1)', WebkitBackdropFilter: 'blur(14px) saturate(1.1)',
+      border: '1px solid var(--om-glass-line, rgba(255,255,255,0.7))',
+      borderRadius: 'var(--om-radius-lg, 16px)', padding: '20px 22px',
+      boxShadow: 'var(--om-shadow-aurora, 0 12px 32px rgba(27,24,64,0.06))',
+    },
+    doneIcon: {
+      flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 48, height: 48, borderRadius: '50%', color: '#fff',
+      background: 'linear-gradient(140deg, var(--om-sage-deep, #4E6B3F), #6f9a57)',
+      boxShadow: '0 8px 20px rgba(78,107,63,0.34)',
+    },
+    doneTitle: { fontSize: 17, fontWeight: 600, color: 'var(--om-ink)', marginBottom: 3 },
+    doneSub: { fontSize: 13.5, color: 'var(--om-muted)', lineHeight: 1.5 },
+    editBtn: { marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' },
+    recap: {
+      background: 'var(--om-canvas-white, #fff)',
+      border: '1px solid var(--om-hairline, #e7e1d6)', borderRadius: 'var(--om-radius-lg, 16px)',
+      padding: '6px 20px',
+    },
+    recapRow: {
+      display: 'flex', gap: 18, padding: '12px 0', flexWrap: 'wrap',
+      borderBottom: '1px solid var(--om-hairline, #e7e1d6)',
+    },
+    recapQ: { flex: '1 1 300px', minWidth: 0, fontSize: 13.5, color: 'var(--om-muted)' },
+    recapA: { flex: '0 1 auto', fontSize: 14, fontWeight: 600, color: 'var(--om-ink)', textAlign: 'right' },
+    recapEmpty: { fontWeight: 400, color: 'var(--om-faint)' },
   };
 
   window.ClientSurvey = ClientSurvey;
