@@ -513,6 +513,9 @@
             </div>
           </div>
         </div>
+
+        {/* ─────────── Анкеты обратной связи (реальные данные) ─────────── */}
+        {window.SurveyAnalytics && <window.SurveyAnalytics />}
       </React.Fragment>
     );
   }

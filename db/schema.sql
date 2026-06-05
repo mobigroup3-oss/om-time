@@ -326,3 +326,17 @@ CREATE TABLE IF NOT EXISTS client_measures (
   PRIMARY KEY (client_id, phase, field)
 );
 CREATE INDEX IF NOT EXISTS idx_client_measures ON client_measures (client_id);
+
+-- ── Анкета обратной связи (кабинет клиента) ────────────────
+-- Клиент заполняет анкету удовлетворённости в своём кабинете (отдельная
+-- страница «Анкета»). Вопросы и варианты — копия n8n-формы om-time-anketa
+-- (определены на фронте в SurveyConfig.jsx, проверяются в api/clients.js
+-- SURVEY_FIELDS). Одна актуальная анкета на клиента: повторная отправка
+-- перезаписывает (UPSERT по client_id). Все ответы — один JSON-объект
+-- (ключ вопроса → ответ), чтобы добавлять/менять вопросы без миграций.
+-- Админ в «Аналитике» сводит ответы в целом и видит каждого клиента отдельно.
+CREATE TABLE IF NOT EXISTS client_surveys (
+  client_id    TEXT PRIMARY KEY REFERENCES clients(id) ON DELETE CASCADE,
+  answers      JSONB NOT NULL DEFAULT '{}',          -- { source, times, kg_lost, admin, trainer, ... }
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

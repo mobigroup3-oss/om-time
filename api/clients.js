@@ -388,10 +388,99 @@ async function handleMeasures(req, res, sql) {
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
 }
 
+// Анкета обратной связи (client_surveys) — одна актуальная анкета на клиента.
+// Вопросы/варианты — копия n8n-формы om-time-anketa (фронт: SurveyConfig.jsx).
+// Здесь храним и валидируем только КЛЮЧИ вопросов и типы значений; точные
+// варианты ответов задаёт форма. Заполняет сам клиент, админ сводит в Аналитике.
+//   GET    ?resource=survey                       → анкета текущего клиента (self) или ?clientId (админ/специалист)
+//   GET    ?resource=survey&action=all            → все анкеты (только админ; с именем клиента) для сводки
+//   POST   ?resource=survey  { answers:{…} }       → сохранить/перезаписать свою анкету (UPSERT)
+//   Запись: только сам клиент (свой clientId) ИЛИ админ. Чтение одной анкеты: + специалист клиента.
+const SURVEY_FIELDS = ['source', 'times', 'kg_lost', 'admin', 'trainer', 'trainer_rating', 'psy_chat', 'club', 'intensive', 'recommend', 'suggestions'];
+
+// Привести присланные ответы к безопасному виду: только известные ключи,
+// числовое поле — число 0…300, текстовое — обрезка до 2000, остальное — до 200.
+function sanitizeSurvey(src) {
+  const a = {};
+  if (!src || typeof src !== 'object') return a;
+  for (const k of SURVEY_FIELDS) {
+    if (src[k] == null) continue;
+    if (k === 'kg_lost') {
+      const n = Number(src[k]);
+      if (Number.isFinite(n) && n >= 0 && n <= 300) a[k] = Math.round(n * 10) / 10;
+    } else if (k === 'suggestions') {
+      const t = String(src[k]).trim().slice(0, 2000);
+      if (t) a[k] = t;
+    } else {
+      const t = String(src[k]).trim().slice(0, 200);
+      if (t) a[k] = t;
+    }
+  }
+  return a;
+}
+
+async function handleSurvey(req, res, sql) {
+  if (!sql) {
+    if (req.method === 'GET') {
+      const all = req.query && req.query.action === 'all';
+      return res.status(200).json({ ok: true, data: all ? [] : null });
+    }
+    return res.status(503).json({ ok: false, error: 'База данных не настроена (POSTGRES_URL)' });
+  }
+  const who = await resolveActor(req, sql);
+  if (!who) return res.status(401).json({ ok: false, error: 'Нужна авторизация' });
+
+  // Все анкеты с именами клиентов — только админ, для сводной аналитики.
+  if (req.query && req.query.action === 'all') {
+    if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+    if (who.actor.role !== 'admin') return res.status(403).json({ ok: false, error: 'Доступно только администратору' });
+    const rows = await sql`
+      SELECT s.client_id, s.answers, s.submitted_at, c.name AS client_name, c.program_id
+      FROM client_surveys s
+      JOIN clients c ON c.id = s.client_id
+      ORDER BY s.submitted_at DESC`;
+    return res.status(200).json({
+      ok: true,
+      data: rows.rows.map(r => ({
+        clientId: r.client_id, clientName: r.client_name, programId: r.program_id || '',
+        answers: r.answers || {}, submittedAt: r.submitted_at,
+      })),
+    });
+  }
+
+  const selfId = who.actor.role === 'client' ? who.actor.id : null;
+  const clientId = (req.query && req.query.clientId) || selfId;
+  if (!clientId) return res.status(400).json({ ok: false, error: 'Нужен clientId' });
+  const canWrite = who.actor.role === 'admin' || (who.actor.role === 'client' && who.actor.id === clientId);
+
+  if (req.method === 'GET') {
+    if (!(await who.can(clientId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому клиенту' });
+    const r = await sql`SELECT answers, submitted_at FROM client_surveys WHERE client_id = ${clientId} LIMIT 1`;
+    if (!r.rows.length) return res.status(200).json({ ok: true, data: null });
+    return res.status(200).json({ ok: true, data: { answers: r.rows[0].answers || {}, submittedAt: r.rows[0].submitted_at } });
+  }
+
+  if (req.method === 'POST') {
+    if (!canWrite) return res.status(403).json({ ok: false, error: 'Заполнять анкету может только сам клиент' });
+    const b = readJson(req);
+    const answers = sanitizeSurvey(b.answers);
+    await sql`
+      INSERT INTO client_surveys (client_id, answers, submitted_at)
+      VALUES (${clientId}, ${JSON.stringify(answers)}::jsonb, now())
+      ON CONFLICT (client_id) DO UPDATE SET answers = EXCLUDED.answers, submitted_at = now()`;
+    return res.status(200).json({ ok: true, data: { answers, submittedAt: new Date().toISOString() } });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
 export default async function handler(req, res) {
   if (handlePreflight(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
   const sql = await getSql();
   const action = req.query && req.query.action;
+
+  // Анкета обратной связи — отдельная ветка (см. handleSurvey выше).
+  if (req.query && req.query.resource === 'survey') return handleSurvey(req, res, sql);
 
   // Лента кабинета клиента — отдельная ветка (см. handleActivities выше).
   if (req.query && req.query.resource === 'activities') return handleActivities(req, res, sql);

@@ -102,10 +102,11 @@ const NAV_SPECIALIST = [
   ]},
 ];
 
-// Навигация клиента — личный кабинет с таблицами/графиками.
+// Навигация клиента — личный кабинет с таблицами/графиками + анкета.
 const NAV_CLIENT = [
   { group: 'Кабинет', items: [
-    { id: 'client-home', label: 'Мой кабинет', icon: 'layout-dashboard' },
+    { id: 'client-home',   label: 'Мой кабинет', icon: 'layout-dashboard' },
+    { id: 'client-survey', label: 'Анкета',      icon: 'clipboard-list'   },
   ]},
   { group: 'Личное', items: [
     { id: 'profile',     label: 'Профиль',     icon: 'user-round' },
@@ -187,7 +188,7 @@ function AccountPage() {
       admin:      ['analytics', 'schedule', 'carousel', 'programs', 'team', 'requests', 'sellers', 'deals', 'clients', 'bookings', 'profile'],
       seller:     ['requests', 'deals', 'profile'],
       specialist: ['spec-clients', 'profile'],
-      client:     ['client-home', 'profile'],
+      client:     ['client-home', 'client-survey', 'profile'],
     };
     const role = isAdmin ? 'admin' : isSpecialist ? 'specialist' : isClient ? 'client' : 'seller';
     if (!allowed[role].includes(section)) return <ProfileView />;
@@ -203,6 +204,7 @@ function AccountPage() {
     if (section === 'clients')      return <AdminClientsEditor />;
     if (section === 'spec-clients') return <SpecialistClients />;
     if (section === 'client-home')  return <ClientCabinet />;
+    if (section === 'client-survey') return <ClientSurvey />;
     if (section === 'bookings')     return <MyBookingsView />;
     if (section === 'profile')      return <ProfileView />;
     return <PlaceholderSection id={section} />;
