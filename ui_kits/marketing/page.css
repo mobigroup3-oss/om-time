@@ -241,6 +241,10 @@ html.om-no-scroll, html.om-no-scroll body { overflow: hidden; }
 .om-btn--ghost::before { display: none; }
 .om-btn--ghost:hover { color: var(--om-link); }
 
+/* Dark CTA on light/gold surfaces: dark→light hover, text stays readable */
+.om-btn--ink { background: var(--om-ink); color: #fff; }
+.om-btn--ink:hover { color: var(--om-ink); }
+
 /* =====================================================================
    EYEBROW + TAGS
    ===================================================================== */
