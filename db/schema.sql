@@ -340,3 +340,23 @@ CREATE TABLE IF NOT EXISTS client_surveys (
   answers      JSONB NOT NULL DEFAULT '{}',          -- { source, times, kg_lost, admin, trainer, ... }
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ── Поддержка: диалоги клиента с несколькими специалистами ─────
+-- В разделе «Поддержка» клиент пишет не только своему куратору, но и любому
+-- дежурному специалисту. Дежурный — участник команды с флагом support_available
+-- и заданным кодом входа (code_hash). Отдельной таблицы тредов нет: диалог = набор
+-- записей client_activities с одной парой (client_id, peer_specialist_id):
+--   peer_specialist_id IS NULL  → основная лента куратора (как было: куратор/клиент/админ)
+--   peer_specialist_id = <id>   → личный диалог клиента с этим специалистом (он/клиент/админ)
+-- Приватность: куратор НЕ видит чужие диалоги поддержки; админ видит все.
+ALTER TABLE team_members      ADD COLUMN IF NOT EXISTS support_available BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE client_activities ADD COLUMN IF NOT EXISTS peer_specialist_id TEXT REFERENCES team_members(id) ON DELETE CASCADE;
+ALTER TABLE client_activities ADD COLUMN IF NOT EXISTS read_by_client     BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE client_activities ADD COLUMN IF NOT EXISTS read_by_specialist BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_client_act_peer ON client_activities (peer_specialist_id, client_id);
+
+-- ВЫПОЛНИТЬ ОДИН РАЗ после добавления колонок: пометить ВСЕ уже существующие записи
+-- прочитанными, чтобы старые ленты не зажгли счётчик непрочитанных. Повторно НЕ запускать
+-- (затрёт реальные непрочитанные).
+--   UPDATE client_activities SET read_by_client = true, read_by_specialist = true;

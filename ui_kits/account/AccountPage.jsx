@@ -92,21 +92,23 @@ const NAV_SELLER = [
   ]},
 ];
 
-// Навигация специалиста — только прикреплённые клиенты.
+// Навигация специалиста — прикреплённые клиенты + входящие обращения поддержки.
 const NAV_SPECIALIST = [
   { group: 'Работа', items: [
     { id: 'spec-clients', label: 'Мои клиенты', icon: 'clipboard-list' },
+    { id: 'spec-inbox',   label: 'Обращения',   icon: 'messages-square' },
   ]},
   { group: 'Личное', items: [
     { id: 'profile',      label: 'Профиль',     icon: 'user-round' },
   ]},
 ];
 
-// Навигация клиента — личный кабинет с таблицами/графиками + анкета.
+// Навигация клиента — личный кабинет с таблицами/графиками + поддержка + анкета.
 const NAV_CLIENT = [
   { group: 'Кабинет', items: [
-    { id: 'client-home',   label: 'Мой кабинет', icon: 'layout-dashboard' },
-    { id: 'client-survey', label: 'Анкета',      icon: 'clipboard-list'   },
+    { id: 'client-home',    label: 'Мой кабинет', icon: 'layout-dashboard' },
+    { id: 'client-support', label: 'Поддержка',   icon: 'life-buoy'        },
+    { id: 'client-survey',  label: 'Анкета',      icon: 'clipboard-list'   },
   ]},
   { group: 'Личное', items: [
     { id: 'profile',     label: 'Профиль',     icon: 'user-round' },
@@ -136,6 +138,7 @@ function AccountPage() {
   const [eventsCount, setEventsCount] = React.useState(null);
   const [freeLeads, setFreeLeads] = React.useState(0);   // свободных лидов (для продажника)
   const [leadToast, setLeadToast] = React.useState(null);
+  const [supportUnread, setSupportUnread] = React.useState(0); // непрочитанные в поддержке (клиент/специалист)
   const prevFreeRef = React.useRef(null);
 
   // Подхватываем количество событий из редактора расписания через окно
@@ -173,6 +176,27 @@ function AccountPage() {
     return () => { alive = false; clearInterval(t); };
   }, [isSeller]);
 
+  // Счётчик непрочитанных в «Поддержке» (клиент) / «Обращениях» (специалист).
+  // Сумма по всем диалогам — висит бейджем на пункте навигации. Обновляется
+  // и при смене раздела (вернулись из диалога — сервер уже пометил прочитанным).
+  React.useEffect(() => {
+    if (!isClient && !isSpecialist) return;
+    let alive = true;
+    const url = isClient ? '/api/clients?resource=roster' : '/api/clients?resource=inbox';
+    const poll = () => {
+      fetch(url, { headers: window.omAuth.headers() })
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => {
+          if (!alive || !j || !j.ok || !Array.isArray(j.data)) return;
+          setSupportUnread(j.data.reduce((s, x) => s + (Number(x.unread) || 0), 0));
+        })
+        .catch(() => {});
+    };
+    poll();
+    const t = setInterval(poll, 45000);
+    return () => { alive = false; clearInterval(t); };
+  }, [isClient, isSpecialist, section]);
+
   const userName = isAdmin ? 'Администратор'
     : isSpecialist ? (window.omAuth.specialistName() || 'Специалист')
     : isClient ? (window.omAuth.clientName() || 'Клиент')
@@ -187,8 +211,8 @@ function AccountPage() {
     const allowed = {
       admin:      ['analytics', 'schedule', 'carousel', 'programs', 'team', 'requests', 'sellers', 'deals', 'clients', 'bookings', 'profile'],
       seller:     ['requests', 'deals', 'profile'],
-      specialist: ['spec-clients', 'profile'],
-      client:     ['client-home', 'client-survey', 'profile'],
+      specialist: ['spec-clients', 'spec-inbox', 'profile'],
+      client:     ['client-home', 'client-support', 'client-survey', 'profile'],
     };
     const role = isAdmin ? 'admin' : isSpecialist ? 'specialist' : isClient ? 'client' : 'seller';
     if (!allowed[role].includes(section)) return <ProfileView />;
@@ -203,7 +227,9 @@ function AccountPage() {
     if (section === 'deals')        return <SalesDeals />;
     if (section === 'clients')      return <AdminClientsEditor />;
     if (section === 'spec-clients') return <SpecialistClients />;
+    if (section === 'spec-inbox')   return <SpecialistInbox />;
     if (section === 'client-home')  return <ClientCabinet />;
+    if (section === 'client-support') return <ClientSupport />;
     if (section === 'client-survey') return <ClientSurvey />;
     if (section === 'bookings')     return <MyBookingsView />;
     if (section === 'profile')      return <ProfileView />;
@@ -246,6 +272,10 @@ function AccountPage() {
                 {it.id === 'requests' && !isAdmin && freeLeads > 0 && (
                   <span className="om-acc-nav-count" title="Свободных лидов — можно взять в работу"
                     style={{ background: 'var(--om-coral)', color: '#fff' }}>{freeLeads}</span>
+                )}
+                {(it.id === 'client-support' || it.id === 'spec-inbox') && supportUnread > 0 && (
+                  <span className="om-acc-nav-count" title="Непрочитанные сообщения"
+                    style={{ background: 'var(--om-coral)', color: '#fff' }}>{supportUnread}</span>
                 )}
               </button>
             ))}

@@ -163,7 +163,7 @@
       name: '', roleCat: 'psychologist', roleLabel: '', tag: '', tone: 'lilac', photo: '',
       spec: [], credentials: [], bio: '',
       years: '', yearsLabel: 'лет практики', sessions: '', sessionsLabel: 'сессий',
-      featured: false, active: true,
+      featured: false, active: true, supportAvailable: false,
     };
     const editingItem = editing === 'new' ? blank : items.find(i => i.id === editing);
 
@@ -597,6 +597,22 @@
                   : 'Задайте код, чтобы этот человек мог входить в кабинет как специалист и проверять данные прикреплённых клиентов. Передайте код лично — позже он не показывается.'}
               </span>
             </div>
+
+            <label style={S.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={!!form.supportAvailable}
+                onChange={e => set('supportAvailable', e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: 'var(--om-ink)' }}
+              />
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span>Принимает обращения клиентов в «Поддержку» (дежурный)</span>
+                <span className="om-form-help" style={{ margin: 0, fontWeight: 400 }}>
+                  Любой клиент с кабинетом сможет написать этому специалисту в разделе «Поддержка».
+                  Нужен заданный код входа — иначе специалист не сможет прочитать сообщения.
+                </span>
+              </span>
+            </label>
 
             <label style={S.checkboxRow}>
               <input

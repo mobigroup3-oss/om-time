@@ -59,6 +59,7 @@ function actToCanonical(r) {
     authorRole: r.author_role || '',
     type: r.type || 'note',
     text: r.text || '',
+    peerSpecialistId: r.peer_specialist_id || '',   // '' = основная лента куратора (NULL в БД)
     createdAt: r.created_at,
   };
 }
@@ -171,7 +172,40 @@ async function resolveActor(req, sql) {
   return null;
 }
 
-// Лента кабинета клиента (client_activities). Доступ: админ / специалист клиента / сам клиент.
+// Доступ к конкретному ТРЕДУ (client_id + peer_specialist_id):
+//   peerId === null → основная лента куратора (куратор клиента / клиент / админ)
+//   peerId !== null → диалог поддержки клиента с этим специалистом (он / клиент / админ)
+// Куратор НЕ имеет доступа к чужим диалогам поддержки; админ видит всё.
+async function canAccessThread(who, sql, clientId, peerId) {
+  if (who.actor.role === 'admin') return true;
+  if (who.actor.role === 'client') return who.actor.id === clientId;
+  if (who.actor.role === 'specialist') {
+    if (peerId === null) {
+      const r = await sql`SELECT 1 FROM clients WHERE id = ${clientId} AND specialist_id = ${who.actor.id} LIMIT 1`;
+      return r.rows.length > 0;
+    }
+    return peerId === who.actor.id;
+  }
+  return false;
+}
+
+// Может ли клиент завести/писать в тред с этим специалистом: либо это его куратор,
+// либо специалист дежурит по поддержке (support_available) и имеет код входа.
+async function clientMayMessage(sql, clientId, peerId) {
+  const r = await sql`
+    SELECT 1 FROM team_members t
+    WHERE t.id = ${peerId}
+      AND (
+        t.id = (SELECT specialist_id FROM clients WHERE id = ${clientId})
+        OR (t.support_available = true AND t.code_hash IS NOT NULL)
+      )
+    LIMIT 1`;
+  return r.rows.length > 0;
+}
+
+// Лента/диалоги вокруг клиента (client_activities). Тред задаётся параметром
+// peerSpecialistId (пусто → основная лента куратора). При чтении сообщения
+// другой стороны помечаются прочитанными для текущего участника.
 async function handleActivities(req, res, sql) {
   if (!sql) {
     if (req.method === 'GET') return res.status(200).json({ ok: true, data: [] });
@@ -183,8 +217,24 @@ async function handleActivities(req, res, sql) {
   if (req.method === 'GET') {
     const clientId = req.query && req.query.clientId;
     if (!clientId) return res.status(400).json({ ok: false, error: 'Нужен clientId' });
-    if (!(await who.can(clientId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому клиенту' });
-    const rows = await sql`SELECT * FROM client_activities WHERE client_id = ${clientId} ORDER BY created_at ASC`;
+    const peerId = (req.query && req.query.peerSpecialistId) ? String(req.query.peerSpecialistId) : null;
+    if (!(await canAccessThread(who, sql, clientId, peerId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому диалогу' });
+    const rows = await sql`
+      SELECT * FROM client_activities
+      WHERE client_id = ${clientId} AND peer_specialist_id IS NOT DISTINCT FROM ${peerId}
+      ORDER BY created_at ASC`;
+    // Отметить прочитанным то, что написал не текущий участник.
+    if (who.actor.role === 'client') {
+      await sql`
+        UPDATE client_activities SET read_by_client = true
+        WHERE client_id = ${clientId} AND peer_specialist_id IS NOT DISTINCT FROM ${peerId}
+          AND author_role <> 'client' AND read_by_client = false`;
+    } else if (who.actor.role === 'specialist') {
+      await sql`
+        UPDATE client_activities SET read_by_specialist = true
+        WHERE client_id = ${clientId} AND peer_specialist_id IS NOT DISTINCT FROM ${peerId}
+          AND author_role <> 'specialist' AND read_by_specialist = false`;
+    }
     return res.status(200).json({ ok: true, data: rows.rows.map(actToCanonical) });
   }
 
@@ -200,15 +250,97 @@ async function handleActivities(req, res, sql) {
   const b = readJson(req);
   const clientId = b.clientId;
   if (!clientId) return res.status(422).json({ ok: false, errors: { clientId: 'Нужен clientId' } });
-  if (!(await who.can(clientId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому клиенту' });
+  const peerId = b.peerSpecialistId ? String(b.peerSpecialistId) : null;
+  if (!(await canAccessThread(who, sql, clientId, peerId))) return res.status(403).json({ ok: false, error: 'Нет доступа к этому диалогу' });
+  // Клиент может писать только куратору или дежурному специалисту (не любому из команды).
+  if (who.actor.role === 'client' && peerId !== null && !(await clientMayMessage(sql, clientId, peerId))) {
+    return res.status(403).json({ ok: false, error: 'Этому специалисту нельзя написать' });
+  }
   const type = ACT_TYPES.includes(b.type) ? b.type : 'note';
   const text = String(b.text || '').trim();
   if (!text) return res.status(422).json({ ok: false, errors: { text: 'Пустая запись' } });
+  // Автор своё сообщение уже «прочитал» — чтобы оно не считалось ему непрочитанным.
+  const readByClient = who.actor.role === 'client';
+  const readBySpecialist = who.actor.role === 'specialist';
   const ins = await sql`
-    INSERT INTO client_activities (client_id, author_id, author_name, author_role, type, text)
-    VALUES (${clientId}, ${who.actor.id}, ${who.actor.name}, ${who.actor.role}, ${type}, ${text})
+    INSERT INTO client_activities (client_id, author_id, author_name, author_role, type, text, peer_specialist_id, read_by_client, read_by_specialist)
+    VALUES (${clientId}, ${who.actor.id}, ${who.actor.name}, ${who.actor.role}, ${type}, ${text}, ${peerId}, ${readByClient}, ${readBySpecialist})
     RETURNING *`;
   return res.status(200).json({ ok: true, data: actToCanonical(ins.rows[0]) });
+}
+
+// Список собеседников клиента для раздела «Поддержка» (роль client).
+// Куратор (peerSpecialistId: '' = основная лента) + дежурные специалисты
+// (support_available + код входа). По каждому — счётчик непрочитанных клиентом.
+async function handleRoster(req, res, sql) {
+  if (!sql) return res.status(200).json({ ok: true, data: [] });
+  if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  const cl = await getClient(req);
+  if (!cl) return res.status(401).json({ ok: false, error: 'Нужна авторизация клиента' });
+
+  // Непрочитанные клиентом по тредам (peer NULL = куратор).
+  const counts = await sql`
+    SELECT peer_specialist_id,
+           COUNT(*) FILTER (WHERE author_role <> 'client' AND read_by_client = false) AS unread,
+           MAX(created_at) AS last_at
+    FROM client_activities WHERE client_id = ${cl.id}
+    GROUP BY peer_specialist_id`;
+  const byPeer = {};
+  counts.rows.forEach(r => { byPeer[r.peer_specialist_id || ''] = { unread: Number(r.unread) || 0, lastAt: r.last_at }; });
+
+  const out = [];
+  // Куратор — всегда первым (основная лента, peerSpecialistId: '').
+  if (cl.specialist_id) {
+    const s = await sql`SELECT id, name, role_label, photo FROM team_members WHERE id = ${cl.specialist_id} LIMIT 1`;
+    if (s.rows.length) {
+      const m = byPeer[''] || {};
+      out.push({ specialistId: '', name: s.rows[0].name, roleLabel: s.rows[0].role_label || '',
+        photo: s.rows[0].photo || '', isCurator: true, unread: m.unread || 0, lastAt: m.lastAt || null });
+    }
+  }
+  // Дежурные специалисты (кроме куратора).
+  const duty = await sql`
+    SELECT id, name, role_label, photo FROM team_members
+    WHERE support_available = true AND code_hash IS NOT NULL
+      AND id IS DISTINCT FROM ${cl.specialist_id || null}
+    ORDER BY sort_order, name`;
+  duty.rows.forEach(r => {
+    const m = byPeer[r.id] || {};
+    out.push({ specialistId: r.id, name: r.name, roleLabel: r.role_label || '',
+      photo: r.photo || '', isCurator: false, unread: m.unread || 0, lastAt: m.lastAt || null });
+  });
+
+  return res.status(200).json({ ok: true, data: out });
+}
+
+// Входящие обращения поддержки к специалисту (роль specialist).
+// Клиенты, написавшие ему в тред поддержки (peer = его id), с непрочитанными и
+// последним сообщением. Эти клиенты НЕ обязаны быть к нему прикреплены.
+async function handleInbox(req, res, sql) {
+  if (!sql) return res.status(200).json({ ok: true, data: [] });
+  if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  const sp = await getSpecialist(req);
+  if (!sp) return res.status(401).json({ ok: false, error: 'Нужна авторизация специалиста' });
+
+  const rows = await sql`
+    SELECT a.client_id, c.name AS client_name, c.program_id,
+           COUNT(*) FILTER (WHERE a.author_role = 'client' AND a.read_by_specialist = false) AS unread,
+           MAX(a.created_at) AS last_at,
+           (SELECT text FROM client_activities x
+            WHERE x.client_id = a.client_id AND x.peer_specialist_id = ${sp.id}
+            ORDER BY created_at DESC LIMIT 1) AS last_text
+    FROM client_activities a
+    JOIN clients c ON c.id = a.client_id
+    WHERE a.peer_specialist_id = ${sp.id}
+    GROUP BY a.client_id, c.name, c.program_id
+    ORDER BY last_at DESC`;
+  return res.status(200).json({
+    ok: true,
+    data: rows.rows.map(r => ({
+      clientId: r.client_id, clientName: r.client_name || '', programId: r.program_id || '',
+      unread: Number(r.unread) || 0, lastAt: r.last_at, lastText: r.last_text || '',
+    })),
+  });
 }
 
 // График снижения веса (client_weights + clients.program_start/start_weight).
@@ -482,8 +614,14 @@ export default async function handler(req, res) {
   // Анкета обратной связи — отдельная ветка (см. handleSurvey выше).
   if (req.query && req.query.resource === 'survey') return handleSurvey(req, res, sql);
 
-  // Лента кабинета клиента — отдельная ветка (см. handleActivities выше).
+  // Лента/диалоги кабинета клиента — отдельная ветка (см. handleActivities выше).
   if (req.query && req.query.resource === 'activities') return handleActivities(req, res, sql);
+
+  // Список собеседников клиента для «Поддержки» — отдельная ветка (см. handleRoster выше).
+  if (req.query && req.query.resource === 'roster') return handleRoster(req, res, sql);
+
+  // Входящие обращения поддержки к специалисту — отдельная ветка (см. handleInbox выше).
+  if (req.query && req.query.resource === 'inbox') return handleInbox(req, res, sql);
 
   // График снижения веса — отдельная ветка (см. handleWeights выше).
   if (req.query && req.query.resource === 'weights') return handleWeights(req, res, sql);

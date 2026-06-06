@@ -60,10 +60,15 @@
   };
   const roleLabel = (r) => ({ admin: 'Администратор', specialist: 'Специалист', client: 'Клиент' }[r] || r || '');
 
-  // ── Переиспользуемая лента комментариев вокруг клиента ──
-  // Props: { clientId, canDelete } — canDelete доступен только администратору.
-  function ClientActivityThread({ clientId, canDelete }) {
-    const CK = 'omtime.activities.' + (clientId || 'self');
+  // ── Переиспользуемая лента/диалог вокруг клиента ──
+  // Props: { clientId, canDelete, peerSpecialistId, placeholder, onRead }
+  //   peerSpecialistId: '' / undefined → основная лента куратора; иначе диалог
+  //     клиента с этим специалистом (раздел «Поддержка»/«Обращения»).
+  //   canDelete доступен только администратору. onRead() — колбэк после загрузки
+  //     треда (тред помечается прочитанным на сервере — повод обновить бейджи).
+  function ClientActivityThread({ clientId, canDelete, peerSpecialistId, placeholder, onRead }) {
+    const peer = peerSpecialistId || '';
+    const CK = 'omtime.activities.' + (clientId || 'self') + '.' + (peer || 'curator');
     const [items, setItems] = useState(() => {
       try { const raw = localStorage.getItem(CK); if (raw) return JSON.parse(raw); } catch (e) {}
       return [];
@@ -86,12 +91,15 @@
     };
 
     const load = () => {
-      api('GET', null, { clientId }).then(j => {
+      const params = { clientId };
+      if (peer) params.peerSpecialistId = peer;
+      api('GET', null, params).then(j => {
         if (j && j.ok && Array.isArray(j.data)) setItems(j.data);
         setLoaded(true);
+        if (onRead) onRead();   // тред прочитан на сервере → родитель обновит счётчики
       });
     };
-    useEffect(() => { if (clientId) load(); }, [clientId]);
+    useEffect(() => { if (clientId) load(); }, [clientId, peer]);
     // Кэш ленты — чтобы сообщения рисовались мгновенно, а не всплывали после запроса.
     useEffect(() => { if (loaded) { try { localStorage.setItem(CK, JSON.stringify(items)); } catch (e) {} } }, [items, loaded]);
     // Авто-скролл к последнему сообщению — ТОЛЬКО после отправки самим пользователем,
@@ -104,7 +112,9 @@
       const t = text.trim();
       if (!t || busy) return;
       setBusy(true);
-      api('POST', { clientId, type: 'note', text: t }).then(j => {
+      const body = { clientId, type: 'note', text: t };
+      if (peer) body.peerSpecialistId = peer;
+      api('POST', body).then(j => {
         setBusy(false);
         if (j && j.ok && j.data) { scrollPending.current = true; setItems(cur => [...cur, j.data]); setText(''); }
       });
@@ -148,7 +158,7 @@
           <textarea className="om-form-textarea" value={text} rows={2}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }}
-            placeholder="Комментарий по клиенту… (Ctrl+Enter — отправить)"
+            placeholder={placeholder || 'Комментарий по клиенту… (Ctrl+Enter — отправить)'}
             style={{ flex: 1, minHeight: 0 }} />
           <button className="om-btn om-btn--primary" onClick={send} disabled={!text.trim() || busy}
             style={{ opacity: text.trim() && !busy ? 1 : 0.5 }}>

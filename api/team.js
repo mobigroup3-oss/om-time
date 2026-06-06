@@ -30,6 +30,7 @@ function toCanonical(r) {
     featured: !!r.featured,
     active: r.active !== false,
     sortOrder: r.sort_order || 0,
+    supportAvailable: !!r.support_available,   // принимает обращения клиентов в «Поддержку»
   };
 }
 
@@ -104,6 +105,7 @@ export default async function handler(req, res) {
     featured: !!b.featured,
     active: b.active !== false,
     sortOrder: b.sortOrder == null ? 0 : Number(b.sortOrder),
+    supportAvailable: !!b.supportAvailable,
   };
   if (!v.name) return res.status(422).json({ ok: false, errors: { name: 'Укажите имя' } });
 
@@ -114,10 +116,10 @@ export default async function handler(req, res) {
     const ins = await sql`
       INSERT INTO team_members
         (id, name, role_cat, role_label, tag, tone, photo, spec, credentials, bio,
-         years, years_label, sessions, sessions_label, featured, active, sort_order, code_hash)
+         years, years_label, sessions, sessions_label, featured, active, sort_order, code_hash, support_available)
       VALUES
         (${id}, ${v.name}, ${v.roleCat}, ${v.roleLabel}, ${v.tag}, ${v.tone}, ${v.photo}, ${v.spec}, ${v.credentials}, ${v.bio},
-         ${v.years}, ${v.yearsLabel}, ${v.sessions}, ${v.sessionsLabel}, ${v.featured}, ${v.active}, ${v.sortOrder}, ${codeHash})
+         ${v.years}, ${v.yearsLabel}, ${v.sessions}, ${v.sessionsLabel}, ${v.featured}, ${v.active}, ${v.sortOrder}, ${codeHash}, ${v.supportAvailable})
       RETURNING *`;
     return res.status(200).json({ ok: true, data: { ...toCanonical(ins.rows[0]), hasCode: !!ins.rows[0].code_hash } });
   }
@@ -136,14 +138,14 @@ export default async function handler(req, res) {
             name = ${v.name}, role_cat = ${v.roleCat}, role_label = ${v.roleLabel}, tag = ${v.tag}, tone = ${v.tone}, photo = ${v.photo},
             spec = ${v.spec}, credentials = ${v.credentials}, bio = ${v.bio},
             years = ${v.years}, years_label = ${v.yearsLabel}, sessions = ${v.sessions}, sessions_label = ${v.sessionsLabel},
-            featured = ${v.featured}, active = ${v.active}, sort_order = ${v.sortOrder}
+            featured = ${v.featured}, active = ${v.active}, sort_order = ${v.sortOrder}, support_available = ${v.supportAvailable}
           WHERE id = ${b.id} RETURNING *`
       : await sql`
           UPDATE team_members SET
             name = ${v.name}, role_cat = ${v.roleCat}, role_label = ${v.roleLabel}, tag = ${v.tag}, tone = ${v.tone}, photo = ${v.photo},
             spec = ${v.spec}, credentials = ${v.credentials}, bio = ${v.bio},
             years = ${v.years}, years_label = ${v.yearsLabel}, sessions = ${v.sessions}, sessions_label = ${v.sessionsLabel},
-            featured = ${v.featured}, active = ${v.active}, sort_order = ${v.sortOrder}, code_hash = ${codeHash}
+            featured = ${v.featured}, active = ${v.active}, sort_order = ${v.sortOrder}, support_available = ${v.supportAvailable}, code_hash = ${codeHash}
           WHERE id = ${b.id} RETURNING *`;
     if (!upd.rows.length) return res.status(404).json({ ok: false, error: 'Специалист не найден' });
     return res.status(200).json({ ok: true, data: { ...toCanonical(upd.rows[0]), hasCode: !!upd.rows[0].code_hash } });
