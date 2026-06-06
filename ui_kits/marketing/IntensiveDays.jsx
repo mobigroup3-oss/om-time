@@ -70,10 +70,10 @@ function IntensiveDays() {
                   После интенсива — закрытый чат с&nbsp;психологом. Ответы на&nbsp;вопросы, поддержка, разбор сложных моментов. Без сопровождения первый месяц самостоятельной работы провисает.
                 </p>
               </div>
-              <button className="om-btn" style={{ background: 'var(--om-ink)', color: '#fff' }}>
+              <a className="om-btn" href="support.html" style={{ background: 'var(--om-ink)', color: '#fff', textDecoration: 'none' }}>
                 Подробнее
                 <i data-lucide="arrow-up-right" className="om-icon-16"></i>
-              </button>
+              </a>
             </div>
           </div>
         </div>
