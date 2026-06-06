@@ -272,9 +272,54 @@ async function handleActivities(req, res, sql) {
 // Список собеседников клиента для раздела «Поддержка» (роль client).
 // Куратор (peerSpecialistId: '' = основная лента) + дежурные специалисты
 // (support_available + код входа). По каждому — счётчик непрочитанных клиентом.
+//
+// Админский режим (x-admin-token + ?clientId): для контроля переписки в разделе
+// «Клиенты». Отдаёт реально велущиеся диалоги клиента — куратор (если есть) + каждый
+// специалист, с кем была переписка, со счётчиком сообщений и временем последнего.
 async function handleRoster(req, res, sql) {
   if (!sql) return res.status(200).json({ ok: true, data: [] });
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+
+  if (isAdmin(req)) {
+    const clientId = req.query && req.query.clientId;
+    if (!clientId) return res.status(400).json({ ok: false, error: 'Нужен clientId' });
+    const c = await sql`SELECT specialist_id FROM clients WHERE id = ${clientId} LIMIT 1`;
+    if (!c.rows.length) return res.status(404).json({ ok: false, error: 'Клиент не найден' });
+    const curatorId = c.rows[0].specialist_id || null;
+    const counts = await sql`
+      SELECT peer_specialist_id, COUNT(*) AS cnt, MAX(created_at) AS last_at
+      FROM client_activities WHERE client_id = ${clientId}
+      GROUP BY peer_specialist_id`;
+    // Имена нужны для куратора и для всех peer'ов, с кем была переписка.
+    const ids = [];
+    if (curatorId) ids.push(curatorId);
+    counts.rows.forEach(r => { if (r.peer_specialist_id && !ids.includes(r.peer_specialist_id)) ids.push(r.peer_specialist_id); });
+    const names = {};
+    if (ids.length) {
+      const nm = await sql`SELECT id, name, role_label, photo FROM team_members WHERE id = ANY(${ids})`;
+      nm.rows.forEach(r => { names[r.id] = r; });
+    }
+    const byPeer = {};
+    counts.rows.forEach(r => { byPeer[r.peer_specialist_id || ''] = { cnt: Number(r.cnt) || 0, lastAt: r.last_at }; });
+
+    const out = [];
+    if (curatorId) {
+      const m = byPeer[''] || {};
+      const t = names[curatorId] || {};
+      out.push({ specialistId: '', name: t.name || 'Куратор', roleLabel: t.role_label || '',
+        photo: t.photo || '', isCurator: true, count: m.cnt || 0, lastAt: m.lastAt || null });
+    }
+    counts.rows.forEach(r => {
+      const peer = r.peer_specialist_id;
+      if (!peer) return;                       // основная лента уже учтена куратором
+      const t = names[peer] || {};
+      out.push({ specialistId: peer, name: t.name || 'Специалист', roleLabel: t.role_label || '',
+        photo: t.photo || '', isCurator: false, count: Number(r.cnt) || 0, lastAt: r.last_at });
+    });
+    out.sort((a, b) => (b.lastAt ? new Date(b.lastAt) : 0) - (a.lastAt ? new Date(a.lastAt) : 0));
+    return res.status(200).json({ ok: true, data: out });
+  }
+
   const cl = await getClient(req);
   if (!cl) return res.status(401).json({ ok: false, error: 'Нужна авторизация клиента' });
 

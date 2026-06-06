@@ -259,10 +259,91 @@
   }
   window.ClientFormModal = ClientFormModal;
 
+  // Склонение: 1 сообщение, 2 сообщения, 5 сообщений.
+  const msgWord = (n) => {
+    const a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return 'сообщений';
+    if (b > 1 && b < 5) return 'сообщения';
+    if (b === 1) return 'сообщение';
+    return 'сообщений';
+  };
+  const fmtDateTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso); if (isNaN(d)) return '';
+    return d.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
+
+  // ── Просмотр переписки клиента (только администратор, для контроля) ──
+  // Список реально велущихся диалогов клиента (куратор + дежурные, с кем была
+  // переписка) → открытие конкретного треда на чтение/ответ. Тред —
+  // window.ClientActivityThread (canDelete: админ может удалять записи).
+  function ClientThreadsModal({ client, onClose }) {
+    const [threads, setThreads] = useState([]);
+    const [loaded, setLoaded] = useState(false);
+    const [open, setOpen] = useState(null);
+    const ClientActivityThread = window.ClientActivityThread;
+
+    useEffect(() => {
+      fetch('/api/clients?resource=roster&clientId=' + encodeURIComponent(client.id), { headers: auth().headers() })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => { if (j && j.ok && Array.isArray(j.data)) setThreads(j.data); setLoaded(true); })
+        .catch(() => setLoaded(true));
+    }, []);
+
+    return (
+      <div className="om-modal-backdrop" onClick={onClose}>
+        <div className="om-modal" style={{ maxWidth: 640 }} onClick={e => e.stopPropagation()}>
+          <div className="om-modal-head">
+            <h2 className="om-modal-title">{open ? open.name : 'Переписка · ' + client.name}</h2>
+            <button className="om-modal-close" onClick={onClose}><LucideIcon name="x" size={18} /></button>
+          </div>
+          <div className="om-modal-body">
+            {open ? (
+              <React.Fragment>
+                <button onClick={() => setOpen(null)} style={TM.back}>
+                  <LucideIcon name="arrow-left" size={15} style={{ marginRight: 6 }} /> Все диалоги
+                </button>
+                {ClientActivityThread
+                  ? <ClientActivityThread clientId={client.id} peerSpecialistId={open.specialistId || ''}
+                      canDelete={true} placeholder="Комментарий администратора… (Ctrl+Enter — отправить)" />
+                  : <div style={{ fontSize: 13, color: 'var(--om-faint)' }}>Лента недоступна.</div>}
+              </React.Fragment>
+            ) : !loaded ? (
+              <div style={{ fontSize: 13, color: 'var(--om-faint)', padding: '20px 0', textAlign: 'center' }}>Загрузка…</div>
+            ) : threads.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--om-faint)', padding: '24px 0', textAlign: 'center' }}>
+                У клиента ещё нет переписки.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {threads.map(t => (
+                  <button key={t.specialistId || 'curator'} style={TM.row} onClick={() => setOpen(t)}>
+                    <span style={ST.avatar}>{initials(t.name)}</span>
+                    <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 500, color: 'var(--om-ink)' }}>{t.name}</span>
+                        {t.isCurator && <span className="om-tag-mini om-tag-mini--lilac">куратор</span>}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--om-muted)' }}>
+                        {t.count} {msgWord(t.count)}{t.lastAt ? ' · ' + fmtDateTime(t.lastAt) : ''}
+                      </div>
+                    </div>
+                    <LucideIcon name="chevron-right" size={18} style={{ color: 'var(--om-faint)', flexShrink: 0 }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function AdminClientsEditor() {
     const [items, setItems] = useState([]);
     const [loaded, setLoaded] = useState(false);
     const [editing, setEditing] = useState(null);   // client.id | 'new' | null
+    const [threadsClient, setThreadsClient] = useState(null);   // клиент, чью переписку смотрим
     const [toast, setToast] = useState(null);
 
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
@@ -363,6 +444,9 @@
                         : <span style={ST.neutralTag}>отключён</span>}
                     </td>
                     <td onClick={e => e.stopPropagation()} style={{ textAlign: 'right' }}>
+                      <button className="om-adm-icon-btn" title="Переписка клиента" onClick={() => setThreadsClient(c)}>
+                        <LucideIcon name="messages-square" size={16} />
+                      </button>
                       <button className="om-adm-icon-btn" title="Редактировать" onClick={() => setEditing(c.id)}>
                         <LucideIcon name="pencil" size={16} />
                       </button>
@@ -385,6 +469,10 @@
             onClose={() => setEditing(null)}
             onSaved={handleSaved}
           />
+        )}
+
+        {threadsClient && (
+          <ClientThreadsModal client={threadsClient} onClose={() => setThreadsClient(null)} />
         )}
 
         {toast && <div className="om-toast"><LucideIcon name="check" size={16} />{toast}</div>}
@@ -412,6 +500,20 @@
     codeText: {
       fontFamily: 'var(--om-font-mono, monospace)', fontSize: 26, fontWeight: 600,
       letterSpacing: '0.22em', color: 'var(--om-ink)',
+    },
+  };
+
+  const TM = {
+    back: {
+      display: 'inline-flex', alignItems: 'center', border: 'none', background: 'transparent',
+      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--om-muted)',
+      padding: 0, marginBottom: 12,
+    },
+    row: {
+      display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+      padding: '11px 14px', cursor: 'pointer', fontFamily: 'inherit',
+      background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)',
+      borderRadius: 'var(--om-radius-lg, 16px)',
     },
   };
 
