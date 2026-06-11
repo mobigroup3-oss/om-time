@@ -687,6 +687,313 @@ html.om-no-scroll, html.om-no-scroll body { overflow: hidden; }
   .om-hero-events-pulse::after { animation: none; }
 }
 
+/* ── Announce bar ─────────────────────────────────────────────────────
+   Премиальная строка-анонс над шапкой (см. AnnounceBar.jsx).
+   Глубокий ink-фон с тёплой аврора-подсветкой + медленный световой блик;
+   высококонтрастный коралл→золото бейдж-pill, glass-чип даты, золотая цена,
+   капсульный CTA. Крестик справа закрывает строку до следующего события. */
+.om-announce {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 9px 60px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(120% 180% at 0% 0%, rgba(192, 58, 59, 0.30) 0%, transparent 55%),
+    radial-gradient(120% 180% at 100% 100%, rgba(242, 193, 46, 0.16) 0%, transparent 52%),
+    linear-gradient(100deg, #221F4E 0%, var(--om-ink) 52%, #15123c 100%);
+  color: #fff;
+  font-family: var(--om-font-sans);
+  z-index: 60;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  animation: om-announce-in 560ms var(--om-ease-out) both;
+}
+/* верхняя «живая» подсветка-хайрлайн (коралл→золото, медленно дышит) */
+.om-announce::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent, var(--om-coral) 18%, var(--om-gold) 50%, var(--om-coral) 82%, transparent);
+  background-size: 200% 100%;
+  animation: om-announce-line 9s linear infinite;
+}
+/* мягкая дрейфующая аврора */
+.om-announce-aurora {
+  position: absolute;
+  inset: -60% -10%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 60% at 20% 50%, rgba(192, 58, 59, 0.34), transparent 70%),
+    radial-gradient(34% 58% at 78% 40%, rgba(242, 193, 46, 0.18), transparent 70%);
+  filter: blur(14px);
+  opacity: 0.9;
+  animation: om-announce-aurora 16s ease-in-out infinite alternate;
+}
+/* диагональный световой блик-проход */
+.om-announce-sheen {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -40%;
+  width: 35%;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(105deg,
+    transparent, rgba(255, 255, 255, 0.10) 45%, rgba(255, 255, 255, 0.16) 50%,
+    rgba(255, 255, 255, 0.10) 55%, transparent);
+  transform: skewX(-14deg);
+  animation: om-announce-sheen 7.5s ease-in-out 1.2s infinite;
+}
+.om-announce-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  max-width: var(--om-container-max);
+  text-decoration: none;
+  color: #fff;
+}
+/* Бейдж-pill «Ближайшее событие» — коралл→глубокий коралл, белый текст */
+.om-announce-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 5px 12px 5px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--om-coral) 0%, var(--om-coral-deep) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 6px 16px -6px rgba(192, 58, 59, 0.8);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.om-announce-badge-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  position: relative;
+  flex-shrink: 0;
+}
+.om-announce-badge-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  opacity: 0;
+  animation: om-hero-pulse-ring 2.2s ease-out infinite;
+}
+/* группа «название + дата + отсчёт + цена»: при ротации перемонтируется
+   с мягким появлением снизу (не марки́-бегунок — одиночная смена кадра) */
+.om-announce-swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  animation: om-announce-swap-in 420ms var(--om-ease-out) both;
+}
+.om-announce-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 38vw;
+}
+/* glass-чип даты с иконкой-календарём — читаемый белый текст */
+.om-announce-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  backdrop-filter: blur(2px);
+}
+.om-announce-date i { width: 14px; height: 14px; opacity: 0.85; }
+/* живой обратный отсчёт до старта — коралловый glass-чип, цифры прямые */
+.om-announce-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(192, 58, 59, 0.28);
+  border: 1px solid rgba(255, 122, 110, 0.45);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(2px);
+  box-shadow: 0 0 18px -4px rgba(192, 58, 59, 0.55);
+}
+.om-announce-count i { width: 14px; height: 14px; opacity: 0.9; }
+.om-announce-count-pre {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+}
+.om-announce-count-num {
+  font-weight: 800;
+  font-style: normal;            /* цифры всегда прямые, не курсив */
+  letter-spacing: 0.01em;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.om-announce-price {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--om-gold);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'tnum' 1;
+  text-shadow: 0 0 18px rgba(242, 193, 46, 0.35);
+}
+/* Капсульный CTA «Подробнее» с круглой стрелкой */
+.om-announce-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 5px 6px 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 240ms var(--om-ease-out),
+              border-color 240ms var(--om-ease-out);
+}
+.om-announce-cta-ic {
+  display: grid;
+  place-items: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--om-coral);
+  transition: transform 260ms var(--om-ease-out);
+}
+.om-announce-cta-ic i { width: 14px; height: 14px; }
+.om-announce-main:hover .om-announce-cta {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+.om-announce-main:hover .om-announce-cta-ic { transform: translate(2px, -2px); }
+/* точки-индикаторы при нескольких событиях: текущая — вытянутая капсула */
+.om-announce-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.om-announce-dot {
+  width: 6px; height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: width 280ms var(--om-ease-out), background 200ms ease;
+}
+.om-announce-dot:hover { background: rgba(255, 255, 255, 0.65); }
+.om-announce-dot.is-active {
+  width: 18px;
+  background: linear-gradient(90deg, var(--om-coral), var(--om-gold));
+}
+.om-announce-close {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease,
+              border-color 200ms ease, transform 200ms ease;
+}
+.om-announce-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-50%) rotate(90deg);
+}
+.om-announce-close i { width: 15px; height: 15px; }
+@keyframes om-announce-in {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes om-announce-line {
+  from { background-position: 0% 0; }
+  to   { background-position: 200% 0; }
+}
+@keyframes om-announce-aurora {
+  from { transform: translateX(-6%) scale(1); opacity: 0.75; }
+  to   { transform: translateX(6%) scale(1.08); opacity: 1; }
+}
+@keyframes om-announce-sheen {
+  0%   { left: -40%; }
+  60%, 100% { left: 130%; }
+}
+@keyframes om-announce-swap-in {
+  from { opacity: 0; transform: translateY(9px); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@media (max-width: 1080px) {
+  .om-announce-date { display: none; } /* отсчёт информативнее даты — оставляем его */
+}
+@media (max-width: 760px) {
+  .om-announce { padding: 9px 50px; min-height: 46px; gap: 10px; }
+  .om-announce-main { gap: 10px; }
+  .om-announce-swap { gap: 10px; }
+  .om-announce-date,
+  .om-announce-count,
+  .om-announce-price { display: none; }
+  .om-announce-cta { padding: 4px 5px 4px 12px; }
+  .om-announce-name { font-size: 13.5px; max-width: 56vw; }
+}
+@media (max-width: 460px) {
+  .om-announce-cta { padding: 4px; gap: 0; font-size: 0; }
+  .om-announce-badge { font-size: 10px; letter-spacing: 0.06em; }
+  .om-announce-dots { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .om-announce { animation: none; }
+  .om-announce::before,
+  .om-announce-aurora,
+  .om-announce-sheen,
+  .om-announce-badge-dot::after,
+  .om-announce-swap { animation: none; }
+  .om-announce-sheen { display: none; }
+}
+
 /* Hero bottom: license + license-academy strip */
 .om-hero-foot {
   margin-top: 80px;

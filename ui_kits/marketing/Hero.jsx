@@ -14,56 +14,9 @@ const HERO_DEFAULT_SLIDES = [
   { id: 'd8', url: '../../uploads/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C/%D0%BA%D0%B0%D1%80%D1%83%D1%81%D0%B5%D0%BB%D1%8C%208.webp', label: '' },
 ];
 
-// Месяцы в родительном падеже (как в мини-календаре блока «Ближайшее событие»).
-const HERO_MONTHS_RU = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-
-// Из свободной строки дат программы («10-11 Июня 2026», «старт 12 ноября»)
-// вытаскиваем число (день) и месяц для мини-календаря. Не нашли — пустая строка.
-function heroParseDate(dates) {
-  if (!dates) return { day: '', month: '' };
-  const str = String(dates);
-  const dayM = str.match(/\d+/);
-  const low = str.toLowerCase();
-  let month = '';
-  for (let i = 0; i < HERO_MONTHS_RU.length; i++) {
-    if (low.includes(HERO_MONTHS_RU[i].slice(0, 3))) { month = HERO_MONTHS_RU[i]; break; }
-  }
-  return { day: dayM ? dayM[0] : '', month };
-}
-
-// Цена программы (число тенге + опц. префикс «от») → строка вида «80 000₸».
-function heroFormatPrice(prefix, price) {
-  if (price == null || price === '') return '';
-  const num = Number(price).toLocaleString('ru-RU') + '₸';
-  return [prefix, num].filter(Boolean).join(' ');
-}
-
-// Каноничную программу из /api/programs → данные для блока «Ближайшее событие».
-function heroFeaturedEvent(c) {
-  if (!c) return null;
-  const d = heroParseDate(c.dates);
-  return {
-    day: d.day,
-    month: d.month,
-    title: c.title || '',
-    trainer: [c.trainer, c.formatLabel].filter(Boolean).join(' · '),
-    price: heroFormatPrice(c.pricePrefix, c.price),
-  };
-}
-
-// Последнее успешно полученное «Ближайшее событие» кэшируется в localStorage,
-// чтобы блок появлялся мгновенно и не «пропадал» при холодном старте /api/programs.
-function heroLoadFeaturedCache() {
-  try { return JSON.parse(localStorage.getItem('om-hero-featured') || 'null'); }
-  catch (e) { return null; }
-}
-
 function Hero() {
   const [slides, setSlides] = React.useState([]);
   const [activeIdx, setActiveIdx] = React.useState(0);
-  const [featured, setFeatured] = React.useState(heroLoadFeaturedCache);
-  const [featuredLoaded, setFeaturedLoaded] = React.useState(() => heroLoadFeaturedCache() != null);
 
   function loadSlides() {
     try {
@@ -84,27 +37,6 @@ function Hero() {
     function onUpdate() { setSlides(loadSlides()); }
     window.addEventListener('om-carousel-updated', onUpdate);
     return () => { alive = false; window.removeEventListener('om-carousel-updated', onUpdate); };
-  }, []);
-
-  // Флагманская программа (featured) → в блок «Ближайшее событие».
-  // /api/programs отдаёт только опубликованные, так что условие — просто featured.
-  React.useEffect(() => {
-    let alive = true;
-    fetch('/api/programs')
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(j => {
-        if (!alive || !j || !j.ok || !Array.isArray(j.data)) return;
-        // showInHero — явная галочка «Ближайшее событие»; featured — обратная совместимость
-        const flag = j.data.find(p => p.showInHero) || j.data.find(p => p.featured);
-        if (flag) {
-          const ev = heroFeaturedEvent(flag);
-          setFeatured(ev);
-          try { localStorage.setItem('om-hero-featured', JSON.stringify(ev)); } catch (e) {}
-        }
-        setFeaturedLoaded(true);
-      })
-      .catch(() => { if (alive) setFeaturedLoaded(true); }); // нет сервера — показываем кэш, если есть
-    return () => { alive = false; };
   }, []);
 
   React.useEffect(() => {
@@ -229,29 +161,6 @@ function Hero() {
               </div>
             )}
           </div>
-
-          {featuredLoaded && featured && (
-            <a href="programs.html" className="om-hero-events">
-              <div className="om-hero-events-cal">
-                <span className="om-hero-events-cal-d">{featured.day || '—'}</span>
-                <span className="om-hero-events-cal-m">{featured.month}</span>
-              </div>
-              <div className="om-hero-events-body">
-                <div className="om-hero-events-label">
-                  <span className="om-hero-events-pulse"></span>
-                  Ближайшее событие
-                </div>
-                <div className="om-hero-events-name">{featured.title}</div>
-                <div className="om-hero-events-trainer">{featured.trainer}</div>
-              </div>
-              <div className="om-hero-events-aside">
-                <span className="om-hero-events-price">{featured.price}</span>
-                <span className="om-hero-events-go" aria-hidden="true">
-                  <i data-lucide="arrow-up-right" style={{ width: 16, height: 16 }}></i>
-                </span>
-              </div>
-            </a>
-          )}
         </div>
       </div>
 

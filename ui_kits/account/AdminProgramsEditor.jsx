@@ -196,6 +196,12 @@
                 <div key={p.id} style={{ ...S.card, opacity: p.active ? 1 : 0.64 }}>
                   <div style={S.cardTop}>
                     <span className={'om-tag-mini om-tag-mini--' + fmt.tone}>{fmt.label}</span>
+                    {p.showInHero && (
+                      <span className="om-tag-mini om-tag-mini--coral" title="Анонсируется в строке наверху главной страницы">
+                        <LucideIcon name="megaphone" size={11} style={{ marginRight: 4 }} />
+                        Ближайшее событие
+                      </span>
+                    )}
                     {!p.active && <span style={S.draftBadge}>Черновик</span>}
                   </div>
 
@@ -458,7 +464,12 @@
                 onChange={e => set('showInHero', e.target.checked)}
                 style={{ width: 18, height: 18, accentColor: 'var(--om-coral)' }}
               />
-              <span>Использовать в блоке «Ближайшее событие» на главной странице</span>
+              <span>
+                Показывать в строке «Ближайшее событие» наверху главной страницы
+                <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: 'var(--om-muted)', marginTop: 2 }}>
+                  Можно отметить несколько программ — анонсы будут сменять друг друга по очереди.
+                </span>
+              </span>
             </label>
           </div>
 
