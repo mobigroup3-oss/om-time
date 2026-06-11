@@ -24,7 +24,6 @@
     { key: 'wrist',       label: 'Обхват запястья' },
   ];
   const round1 = (n) => Math.round(n * 10) / 10;
-  const sm = (n) => round1(n) + ' см';
 
   function post(clientId, phase, field, value) {
     const qs = new URLSearchParams(Object.assign({ resource: 'measures' }, clientId ? { clientId } : {})).toString();

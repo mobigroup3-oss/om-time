@@ -233,7 +233,7 @@ function AccountPage() {
     if (section === 'client-survey') return <ClientSurvey />;
     if (section === 'bookings')     return <MyBookingsView />;
     if (section === 'profile')      return <ProfileView />;
-    return <PlaceholderSection id={section} />;
+    return <ProfileView />;   // безопасный fallback (на практике недостижим — все секции выше обработаны)
   }
 
   return (
@@ -305,44 +305,6 @@ function AccountPage() {
           {leadToast}
         </div>
       )}
-    </React.Fragment>
-  );
-}
-
-function PlaceholderSection({ id }) {
-  const titles = {
-    programs: { eyebrow: 'Управление', title: 'Программы', sub: 'Каталог программ центра. Описания, цены и сроки.' },
-    team:     { eyebrow: 'Управление', title: 'Команда',   sub: 'Тренеры и психологи центра, биографии и расписание ведения.' },
-    requests: { eyebrow: 'Управление', title: 'Заявки',    sub: 'Заявки на запись и обратные звонки с сайта.' },
-    bookings: { eyebrow: 'Личное',     title: 'Мои записи', sub: 'Программы, на которые вы записаны.' },
-    profile:  { eyebrow: 'Личное',     title: 'Профиль',    sub: 'Контактные данные, пароль и уведомления.' },
-  };
-  const t = titles[id] || { eyebrow: '', title: id, sub: '' };
-  return (
-    <React.Fragment>
-      <div className="om-acc-head">
-        <div>
-          <div className="om-acc-eyebrow">{t.eyebrow}</div>
-          <h1 className="om-acc-title">{t.title}</h1>
-          <p className="om-acc-sub">{t.sub}</p>
-        </div>
-      </div>
-      <div style={{
-        background: 'var(--om-canvas-white)',
-        border: '1px dashed var(--om-hairline)',
-        borderRadius: 'var(--om-radius-lg)',
-        padding: '72px 32px',
-        textAlign: 'center',
-        color: 'var(--om-muted)',
-      }}>
-        <LucideIcon name="construction" size={32} style={{ marginBottom: 12, opacity: 0.6 }} />
-        <div style={{ fontSize: 15, color: 'var(--om-ink)', fontWeight: 500, marginBottom: 6 }}>
-          Раздел в разработке
-        </div>
-        <div style={{ fontSize: 13 }}>
-          Макет будущего интерфейса. Здесь появится управление этим разделом.
-        </div>
-      </div>
     </React.Fragment>
   );
 }

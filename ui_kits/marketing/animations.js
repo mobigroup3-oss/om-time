@@ -11,7 +11,6 @@
   var prefersReduced =
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var isMobile = function () { return window.innerWidth < 900; };
-  var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
   function waitForReact(cb, attempts) {
     attempts = attempts || 0;

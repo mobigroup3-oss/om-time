@@ -11,7 +11,7 @@
 // Экспортирует window.WeightChart. Обёрнут в IIFE.
 
 (function () {
-  const { useState, useEffect, useMemo } = React;
+  const { useState, useEffect } = React;
   const LucideIcon = window.LucideIcon;
   const auth = () => window.omAuth;
 

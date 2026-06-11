@@ -1,6 +1,7 @@
-/* AdminScheduleEditor.jsx — макет управления расписанием.
-   In-memory CRUD. Данные не сохраняются после перезагрузки —
-   это design mockup для бэкенд-разработчика. */
+/* AdminScheduleEditor.jsx — управление расписанием событий (admin).
+   CRUD с источником правды на сервере (/api/schedule + /api/schedule-months)
+   и локальным кэшем/fallback (localStorage SCHEDULE_KEY/MONTHS_KEY) на случай
+   отсутствия сервера. Пустые месяцы хранятся отдельной таблицей. */
 
 const SEED_EVENTS = [
   {

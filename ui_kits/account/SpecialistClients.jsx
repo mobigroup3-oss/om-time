@@ -633,7 +633,6 @@
     rowBtn: { flexShrink: 0, fontSize: 12.5, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--om-muted)', background: 'var(--om-canvas-strong, #efe9dd)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-pill, 999px)' },
     addBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '11px 16px', border: 'none', borderTop: '1px dashed var(--om-hairline)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, color: 'var(--om-indigo-deep, #3a2f6b)' },
     pickRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px', borderBottom: '1px solid var(--om-hairline-soft, #f0ece4)', cursor: 'pointer' },
-    pickAdd: { display: 'inline-flex', alignItems: 'center', flexShrink: 0, fontSize: 12.5, fontWeight: 500, color: 'var(--om-indigo-deep, #3a2f6b)' },
   };
   const DT = {
     back: { display: 'inline-flex', alignItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--om-muted)', padding: 0 },
@@ -644,10 +643,6 @@
       border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)',
       padding: '14px 16px 4px', boxShadow: 'var(--om-shadow-card)',
     },
-    cols: { display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'flex-start' },
-    colMain: { flex: '1 1 420px', minWidth: 300 },
-    colSide: { flex: '0 0 260px', minWidth: 240 },
-    card: { background: 'var(--om-canvas-white)', border: '1px solid var(--om-hairline)', borderRadius: 'var(--om-radius-lg, 16px)', padding: '18px 18px' },
     cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--om-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 },
     field: { marginBottom: 12 },
     fieldLabel: { fontSize: 11.5, color: 'var(--om-faint)' },
