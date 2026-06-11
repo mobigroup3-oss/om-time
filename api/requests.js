@@ -154,6 +154,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'PUT') {
     if (!b.id) return res.status(400).json({ ok: false, error: 'Нужен id' });
+    // UPDATE ниже перезаписывает ВСЕ поля: частичный PUT без name/phone затёр бы их в NULL.
+    if (!b.name || !b.phone) return res.status(422).json({ ok: false, errors: { name: 'Имя и телефон обязательны' } });
     const cur = await sql`SELECT assigned_seller_id FROM requests WHERE id = ${b.id} LIMIT 1`;
     if (!cur.rows.length) return res.status(404).json({ ok: false, error: 'Заявка не найдена' });
     const curSeller = cur.rows[0].assigned_seller_id;

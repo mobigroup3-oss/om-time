@@ -49,10 +49,10 @@
     .om-gate-hint { margin: 4px 0 0; font-size: 11px; color: var(--om-faint, #b4ad9e); line-height: 1.5; }
   </style>
 
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
 </head>
 <body>
   <!-- Экран входа. Принимает пароль администратора (= ADMIN_TOKEN, заголовок
@@ -99,10 +99,11 @@
       function clearAll() { Object.keys(K).forEach(function (n) { try { sessionStorage.removeItem(K[n]); } catch (e) {} }); }
 
       // Проверка пароля администратора. /api/requests требует персонал:
-      // 401 → не админ; 200 → ок; сеть/недоступно → 'offline' (нет сервера — пускаем как админа).
+      // только 200 → ок (404/500 — НЕ успех: на статическом зеркале без /api любой
+      // пароль проходил бы); сеть недоступна → 'offline' (локальный просмотр без сервера).
       function verifyAdmin(t) {
         return fetch('/api/requests', { headers: { 'x-admin-token': t } })
-          .then(function (r) { return r.status === 401 ? 'bad' : 'ok'; })
+          .then(function (r) { return r.ok ? 'ok' : 'bad'; })
           .catch(function () { return 'offline'; });
       }
       // Вход по личному коду через указанный эндпоинт. Возвращает данные или null.
@@ -236,8 +237,16 @@
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    // Кабинет монтируется только после входа: без роли в sessionStorage за гейтом
+    // ничего не рендерим (иначе админ-интерфейс существовал бы под оверлеем и был
+    // бы виден любому, кто удалит оверлей в devtools). После входа гейт делает
+    // location.reload() — и этот скрипт отрисует кабинет уже с ролью.
+    let omRole = '';
+    try { omRole = sessionStorage.getItem('omtime.role') || ''; } catch (e) {}
+    if (omRole) {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    }
   </script>
 </body>
 </html>

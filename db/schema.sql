@@ -129,11 +129,8 @@ CREATE TABLE IF NOT EXISTS hero_slides (
 -- Безопасно запускать повторно (IF NOT EXISTS).
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS show_in_hero BOOLEAN NOT NULL DEFAULT false;
 
--- Добавлено: таблица пустых месяцев расписания (кнопка «Новый месяц»).
-CREATE TABLE IF NOT EXISTS schedule_months (
-  month       TEXT PRIMARY KEY,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Таблица пустых месяцев расписания — см. раздел «Пустые месяцы расписания» выше
+-- (дублирующее CREATE TABLE удалено).
 
 -- ════════════════════════════════════════════════════════════
 --  CRM продажников: продажники, сделки, лог обработки заявок

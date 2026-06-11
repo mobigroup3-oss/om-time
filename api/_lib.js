@@ -66,6 +66,8 @@ export async function getSeller(req) {
 
 // Резолв специалиста по личному коду (заголовок x-specialist-token) через БД.
 // Специалист — это участник «Команды» (team_members) с заданным code_hash.
+// active = true обязателен: скрытый с витрины участник теряет и вход в кабинет
+// (симметрично продажникам и клиентам).
 // Возвращает { id, name, role_label } или null.
 export async function getSpecialist(req) {
   const code = req.headers['x-specialist-token'];
@@ -74,7 +76,7 @@ export async function getSpecialist(req) {
   if (!sql) return null;
   const rows = await sql`
     SELECT id, name, role_label FROM team_members
-    WHERE code_hash = ${hashCode(code)}
+    WHERE code_hash = ${hashCode(code)} AND active = true
     LIMIT 1`;
   return rows.rows[0] || null;
 }

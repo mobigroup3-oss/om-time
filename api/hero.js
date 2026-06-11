@@ -20,9 +20,21 @@ export default async function handler(req, res) {
 
   const b = readJson(req);
   const slides = Array.isArray(b.slides) ? b.slides : [];
-  await sql`DELETE FROM hero_slides`;
-  for (let i = 0; i < slides.length; i++) {
-    await sql`INSERT INTO hero_slides (sort_order, data) VALUES (${i + 1}, ${JSON.stringify(slides[i])}::jsonb)`;
+  // DELETE + INSERT в одной транзакции: оборвавшаяся вставка не оставит карусель пустой.
+  const { db } = await import('@vercel/postgres');
+  const client = await db.connect();
+  try {
+    await client.sql`BEGIN`;
+    await client.sql`DELETE FROM hero_slides`;
+    for (let i = 0; i < slides.length; i++) {
+      await client.sql`INSERT INTO hero_slides (sort_order, data) VALUES (${i + 1}, ${JSON.stringify(slides[i])}::jsonb)`;
+    }
+    await client.sql`COMMIT`;
+  } catch (e) {
+    try { await client.sql`ROLLBACK`; } catch (re) {}
+    throw e;
+  } finally {
+    client.release();
   }
   return res.status(200).json({ ok: true, data: slides });
 }

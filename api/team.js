@@ -8,7 +8,7 @@
 //   GET  /api/team?action=me     → по заголовку x-specialist-token → { id, name, roleLabel } или 401
 //
 // Код входа в БД не хранится — только SHA-256 (code_hash). Наружу код не отдаём.
-import { handlePreflight, readJson, requireAdmin, getSql, emptyList, hashCode, getSpecialist } from './_lib.js';
+import { handlePreflight, readJson, requireAdmin, getSql, emptyList, hashCode, getSpecialist, isAdmin } from './_lib.js';
 
 // Публичная канон-форма витрины — без секретов (hasCode добавляется только админу).
 function toCanonical(r) {
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     if (!code) return res.status(422).json({ ok: false, errors: { code: 'Введите код входа' } });
     const rows = await sql`
       SELECT id, name, role_label FROM team_members
-      WHERE code_hash = ${hashCode(code)}
+      WHERE code_hash = ${hashCode(code)} AND active = true
       LIMIT 1`;
     if (!rows.rows.length) return res.status(401).json({ ok: false, error: 'Неверный код или доступ закрыт' });
     const r = rows.rows[0];
@@ -68,12 +68,12 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     if (!sql) return emptyList(res);
     const wantAll = req.query && (req.query.all === '1' || req.query.all === 'true');
-    const isAdmin = wantAll && req.headers['x-admin-token'] === process.env.ADMIN_TOKEN;
-    const rows = isAdmin
+    const admin = wantAll && isAdmin(req);
+    const rows = admin
       ? await sql`SELECT * FROM team_members ORDER BY sort_order, name`
       : await sql`SELECT * FROM team_members WHERE active = true ORDER BY sort_order, name`;
     // Админу показываем, у кого задан код входа (для раздела «Команда»); на витрину не светим.
-    const data = rows.rows.map(r => isAdmin ? { ...toCanonical(r), hasCode: !!r.code_hash } : toCanonical(r));
+    const data = rows.rows.map(r => admin ? { ...toCanonical(r), hasCode: !!r.code_hash } : toCanonical(r));
     return res.status(200).json({ ok: true, data });
   }
 

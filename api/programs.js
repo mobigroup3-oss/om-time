@@ -7,7 +7,7 @@
 //
 // Канонический JSON (camelCase) — общий язык между БД, витриной (ProgramsPage)
 // и редактором (AdminProgramsEditor). Маппинг render-формы — на стороне витрины.
-import { handlePreflight, readJson, requireAdmin, getSql, emptyList } from './_lib.js';
+import { handlePreflight, readJson, requireAdmin, getSql, emptyList, isAdmin } from './_lib.js';
 
 // DB-строка (snake_case) → канонический объект (camelCase).
 function toCanonical(r) {
@@ -46,8 +46,8 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     if (!sql) return emptyList(res);
     const wantAll = req.query && (req.query.all === '1' || req.query.all === 'true');
-    const isAdmin = wantAll && req.headers['x-admin-token'] === process.env.ADMIN_TOKEN;
-    const rows = isAdmin
+    const admin = wantAll && isAdmin(req);
+    const rows = admin
       ? await sql`SELECT * FROM programs ORDER BY sort_order, title`
       : await sql`SELECT * FROM programs WHERE active = true ORDER BY sort_order, title`;
     return res.status(200).json({ ok: true, data: rows.rows.map(toCanonical) });

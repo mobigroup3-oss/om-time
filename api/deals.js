@@ -99,6 +99,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'PUT') {
     if (!b.id) return res.status(400).json({ ok: false, error: 'Нужен id' });
+    // UPDATE ниже перезаписывает ВСЕ поля: частичный PUT без clientName затёр бы имя.
+    if (!v.clientName) return res.status(422).json({ ok: false, errors: { clientName: 'Укажите имя клиента' } });
     // Продажник может править только свою сделку.
     if (who.role !== 'admin') {
       const own = await sql`SELECT seller_id FROM deals WHERE id = ${b.id} LIMIT 1`;

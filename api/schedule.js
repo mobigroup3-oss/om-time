@@ -2,7 +2,7 @@
 //   GET /api/schedule        → опубликованные (status=published)
 //   GET /api/schedule?all=1   → все, включая черновики (admin)
 //   POST/PUT/DELETE           → admin
-import { handlePreflight, readJson, requireAdmin, getSql, emptyList } from './_lib.js';
+import { handlePreflight, readJson, requireAdmin, getSql, emptyList, isAdmin } from './_lib.js';
 
 function toCanonical(r) {
   return {
@@ -39,8 +39,8 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     if (!sql) return emptyList(res);
     const wantAll = req.query && (req.query.all === '1' || req.query.all === 'true');
-    const isAdmin = wantAll && req.headers['x-admin-token'] === process.env.ADMIN_TOKEN;
-    const rows = isAdmin
+    const admin = wantAll && isAdmin(req);
+    const rows = admin
       ? await sql`SELECT * FROM schedule_events ORDER BY month, id`
       : await sql`SELECT * FROM schedule_events WHERE status = 'published' ORDER BY month, id`;
     return res.status(200).json({ ok: true, data: rows.rows.map(toCanonical) });
