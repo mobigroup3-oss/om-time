@@ -190,14 +190,15 @@ async function canAccessThread(who, sql, clientId, peerId) {
 }
 
 // Может ли клиент завести/писать в тред с этим специалистом: либо это его куратор,
-// либо специалист дежурит по поддержке (support_available) и имеет код входа.
+// либо специалист дежурит по поддержке (support_available), имеет код входа и
+// активен (active = false закрывает специалисту вход — сообщения ему повисли бы).
 async function clientMayMessage(sql, clientId, peerId) {
   const r = await sql`
     SELECT 1 FROM team_members t
     WHERE t.id = ${peerId}
       AND (
         t.id = (SELECT specialist_id FROM clients WHERE id = ${clientId})
-        OR (t.support_available = true AND t.code_hash IS NOT NULL)
+        OR (t.support_available = true AND t.code_hash IS NOT NULL AND t.active = true)
       )
     LIMIT 1`;
   return r.rows.length > 0;
@@ -343,10 +344,11 @@ async function handleRoster(req, res, sql) {
         photo: s.rows[0].photo || '', isCurator: true, unread: m.unread || 0, lastAt: m.lastAt || null });
     }
   }
-  // Дежурные специалисты (кроме куратора).
+  // Дежурные специалисты (кроме куратора). active = true обязателен: скрытый
+  // специалист не может войти в кабинет и не прочитал бы сообщения.
   const duty = await sql`
     SELECT id, name, role_label, photo FROM team_members
-    WHERE support_available = true AND code_hash IS NOT NULL
+    WHERE support_available = true AND code_hash IS NOT NULL AND active = true
       AND id IS DISTINCT FROM ${cl.specialist_id || null}
     ORDER BY sort_order, name`;
   duty.rows.forEach(r => {
